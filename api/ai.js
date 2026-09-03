@@ -1,10 +1,9 @@
 /**
- * Iron Ledger — AI Coach endpoint (multi-model with automatic fallback)
+ * HealthPulse — AI endpoint (multi-model with automatic fallback)
  *
  * Models (all free tier):
  *   1. Gemini 3.6 Flash   — primary, supports vision  (GEMINI_API_KEY)
- *   2. Groq Llama 3.3 70B — text-only fallback        (GROQ_API_KEY)
- *   3. Gemini 2.5 Flash   — secondary vision fallback  (same GEMINI_API_KEY)
+ *   2. Groq Qwen 3.6 27B  — text-only fallback        (GROQ_API_KEY)
  *
  * On 429/5xx the handler automatically tries the next model.
  * Vision tasks (lab image) skip non-vision models.
@@ -178,23 +177,27 @@ async function callWithFallback(contents, opts, { needsVision = false } = {}) {
 /* ---- chat system context builder ---- */
 function buildChatSystemContext(context, profile, skipIntake) {
   const roles = {
-    coach: 'expert personal fitness coach and accountability buddy',
-    plan: 'certified strength and conditioning coach',
-    fuel: 'registered sports nutritionist',
+    coach: 'expert health and wellness coach',
+    plan: 'certified strength and conditioning coach who personalizes plans based on health data',
+    fuel: 'registered nutritionist who creates meal plans based on health markers',
     body: 'sports medicine physician and body-composition expert',
+    health: 'medical data analyst who explains health markers in plain language and recommends improvements',
+    fab: 'helpful health assistant who can update user data based on requests',
   };
   const schemas = {
-    coach: '{"greeting":"warm personalised greeting using first name","insight":"2-3 sentences referencing their specific data","tip":"one actionable tip for today tailored to their goal","focus":"one word or short phrase — mental focus for today","labNote":"if labs present: one sentence connecting a lab finding to training/nutrition, else null"}',
-    plan: '{"assessment":"2-3 sentence overall assessment of plan quality vs goal","strengths":["strength 1","strength 2"],"improvements":["specific improvement 1","specific improvement 2"],"recommendation":"2-3 sentence specific recommendation","weeklyFocus":"the single most important thing to focus on this week","labInsight":"if labs present: how a lab marker should influence their training, else null"}',
-    fuel: '{"assessment":"2-3 sentence personalised assessment","highlights":["positive aspect 1","positive aspect 2"],"tips":["actionable tip 1","tip 2"],"timing":"meal-timing advice around their workouts","warning":"the single most important thing to watch out for, or null","labInsight":"if labs present: one specific nutrition adjustment from lab data, else null"}',
+    coach: '{"greeting":"warm personalised greeting using first name","insight":"2-3 sentences referencing their specific health data","tip":"one actionable health tip for today","focus":"one word or short phrase — health focus for today","labNote":"if labs present: one sentence connecting a lab finding to their health, else null"}',
+    plan: '{"assessment":"2-3 sentence overall assessment of plan quality vs health goals","strengths":["strength 1","strength 2"],"improvements":["specific improvement 1","specific improvement 2"],"recommendation":"2-3 sentence specific recommendation considering health markers","weeklyFocus":"the single most important thing to focus on this week","labInsight":"if labs present: how a lab marker should influence their training, else null"}',
+    fuel: '{"assessment":"2-3 sentence personalised nutrition assessment","highlights":["positive aspect 1","positive aspect 2"],"tips":["actionable tip 1","tip 2"],"timing":"meal-timing advice around their workouts","warning":"the single most important thing to watch out for, or null","labInsight":"if labs present: one specific nutrition adjustment from lab data, else null"}',
     body: '{"assessment":"2-3 sentence honest constructive assessment","bfInterpretation":"what their body fat % and trend means for their goal","priorities":["top action priority 1","top action priority 2"],"advice":"2-3 sentences of specific actionable advice grounded in data","encouragement":"one genuine motivating sentence","labInsight":"if labs present: one key body-composition implication from lab data, else null"}',
+    health: '{"assessment":"2-3 sentence overview of health status based on markers","categories":[{"name":"category name","status":"good|warn|bad","summary":"brief explanation"}],"recommendations":["specific actionable recommendation 1","recommendation 2","recommendation 3"],"labInsight":"most important finding from lab data","encouragement":"one encouraging sentence about their health journey"}',
+    fab: '{"message":"helpful response to the user request","dataChanges":null}',
   };
 
   const labsNote = profile.labs
     ? `LAB RESULTS (use to personalise advice):\n${JSON.stringify(profile.labs)}`
     : 'LAB RESULTS: None uploaded';
 
-  let prompt = `You are a ${roles[context]} for the Iron Ledger fitness app. Be warm, direct, and science-backed. Address the user by name when known.
+  let prompt = `You are a ${roles[context]} for the HealthPulse health tracking app. Be warm, direct, and science-backed. Address the user by name when known.
 
 USER PROFILE:
 ${JSON.stringify(profile, null, 2)}
@@ -205,13 +208,19 @@ RULES — follow strictly:
 1. Always respond with ONLY valid JSON. No prose outside the JSON.
 2. During intake phase use: {"phase":"intake","message":"your question(s)","guidance":null}
 3. During guidance phase use: {"phase":"guidance","message":"brief warm intro sentence","guidance":${schemas[context]}}
-4. Ask 1-2 targeted questions relevant to your role (injuries, allergies, preferences, schedule, health context, etc.).
+4. Ask 1-2 targeted questions relevant to your role (health conditions, allergies, preferences, health goals, etc.).
 5. After 1-2 user responses you have enough info — switch to guidance phase.
-6. Never assume — personalise based on the user's answers and profile data.
-7. If lab data is present, reference relevant markers in your guidance.`;
+6. Never assume — personalise based on the user's answers and profile/health data.
+7. If lab data is present, ALWAYS reference relevant markers in your guidance.`;
+
+  if (context === 'fab') {
+    prompt += `\n8. This is a quick-chat assistant. The user is asking to update their health data or get quick answers about their health.
+9. Respond conversationally but always in JSON format: {"phase":"guidance","message":"your helpful response","guidance":{"message":"detailed response","dataChanges":null}}
+10. If the user asks about their health markers, reference their lab data directly.`;
+  }
 
   if (skipIntake) {
-    prompt += '\n8. SKIP intake. Go directly to guidance phase using available profile data.';
+    prompt += '\n' + (context === 'fab' ? '11' : '8') + '. SKIP intake. Go directly to guidance phase using available profile data.';
   }
 
   return prompt;
@@ -221,14 +230,22 @@ RULES — follow strictly:
 function buildLabsTextPrompt(text) {
   return `You are a medical data extraction assistant. Extract all measurable health markers from this lab report text.
 
+The text below is extracted from a PDF lab report. It preserves the table structure using tab-separated columns.
+Each row typically contains: Test Name, Value, Unit, Reference Range, and sometimes a flag/status.
+
 Instructions:
+- Parse each row carefully. Columns are separated by tabs or multiple spaces.
+- Match each test name with its corresponding value, unit, and reference range from the SAME ROW.
 - Extract every test result you can find (blood panel, hormones, vitamins, metabolic markers, urine analysis, etc.)
 - Use standard medical abbreviations for units (mg/dL, g/dL, IU/L, nmol/L, etc.)
 - Note the reference range when visible
-- Flag values outside normal range as "flag": "high" | "low"; within range as "flag": "normal"
-- Only include markers you can clearly identify — do not guess
+- Compare the value against the reference range to determine the flag:
+  - "normal" if value is within the reference range
+  - "high" if value is above the upper limit
+  - "low" if value is below the lower limit
+- Only include markers you can clearly identify with their values — do not guess
 
-LAB REPORT TEXT:
+LAB REPORT TEXT (tab-separated columns):
 ${text}
 
 Respond ONLY with valid JSON:
@@ -339,8 +356,8 @@ export default async function handler(req, res) {
   /* ---- chat: conversational multi-turn ---- */
   if (type === 'chat') {
     const { context, messages, profile, skipIntake } = body;
-    if (!['coach', 'plan', 'fuel', 'body'].includes(context)) {
-      return res.status(400).json({ error: 'context must be coach | plan | fuel | body' });
+    if (!['coach', 'plan', 'fuel', 'body', 'health', 'fab'].includes(context)) {
+      return res.status(400).json({ error: 'context must be coach | plan | fuel | body | health | fab' });
     }
 
     const systemContext = buildChatSystemContext(context, profile || {}, skipIntake);
@@ -382,5 +399,123 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(400).json({ error: 'type must be chat | labs | labs-text' });
+  /* ---- workout-plan: AI-generated weekly workout plan ---- */
+  if (type === 'workout-plan') {
+    const { profile } = body;
+    if (!profile) return res.status(400).json({ error: 'profile required for workout-plan.' });
+
+    const labsNote = profile.labs
+      ? `LAB RESULTS (adjust plan based on these):\n${JSON.stringify(profile.labs)}`
+      : 'LAB RESULTS: None uploaded';
+
+    const prompt = `You are an expert certified strength and conditioning coach. Create a personalized weekly workout plan.
+
+USER PROFILE:
+${JSON.stringify(profile, null, 2)}
+
+${labsNote}
+
+Create a ${profile.days || 4}-day workout plan considering:
+- Experience level: ${profile.experience || 'beginner'}
+- Equipment: ${profile.equipment === 'full' ? 'full gym' : profile.equipment === 'home' ? 'dumbbells at home' : 'bodyweight and bands'}
+- Goal: ${profile.goal || 'muscle'}
+- Any health conditions from lab data (e.g., low vitamin D → lighter intensity, hormonal issues → adjusted volume)
+
+Respond ONLY with valid JSON:
+{
+  "planName": "Short descriptive name for the plan",
+  "description": "1-2 sentence overview of the plan approach",
+  "days": [
+    {
+      "name": "Day name (e.g., Upper Body Push)",
+      "focus": "Primary muscle groups",
+      "warmup": "Brief warmup instructions",
+      "exercises": [
+        {
+          "name": "Exercise name",
+          "sets": 3,
+          "reps": "8-12",
+          "rest": "90s",
+          "notes": "Brief form cue or tip",
+          "alternatives": ["Alternative exercise 1"]
+        }
+      ],
+      "cooldown": "Brief cooldown instructions"
+    }
+  ],
+  "weeklyNotes": "1-2 sentences of overall weekly guidance",
+  "labBasedAdjustments": "If labs present: specific adjustments made based on lab data, else null"
+}`;
+
+    try {
+      const contents = [{ parts: [{ text: prompt }] }];
+      const out = await callWithFallback(contents, { temperature: 0.7, maxOutputTokens: 4096 }, { needsVision: false });
+      if (out.err) return res.status(out.err).json({ error: out.msg });
+      const result = strip(out.raw);
+      if (!result) return res.status(502).json({ error: 'Could not parse workout plan response.' });
+      return res.status(200).json({ ok: true, result, model: out.modelId });
+    } catch (err) {
+      return res.status(500).json({ error: 'Workout plan generation failed: ' + err.message });
+    }
+  }
+
+  /* ---- meal-plan: AI-generated meal plan with recipes ---- */
+  if (type === 'meal-plan') {
+    const { profile } = body;
+    if (!profile) return res.status(400).json({ error: 'profile required for meal-plan.' });
+
+    const labsNote = profile.labs
+      ? `LAB RESULTS (personalize nutrition based on these):\n${JSON.stringify(profile.labs)}`
+      : 'LAB RESULTS: None uploaded';
+
+    const prompt = `You are a registered nutritionist. Create a personalized daily meal plan with full recipes.
+
+USER PROFILE:
+${JSON.stringify(profile, null, 2)}
+
+${labsNote}
+
+Create a meal plan considering:
+- Diet preference: ${profile.diet || 'veg'} (${profile.diet === 'nonveg' ? 'non-vegetarian' : profile.diet === 'egg' ? 'egg + vegetarian' : profile.diet === 'vegan' ? 'vegan' : 'vegetarian'})
+- Cuisine: ${profile.cuisine === 'indian' ? 'Indian' : 'Any cuisine'}
+- Budget-friendly: ${profile.budget ? 'Yes' : 'No'}
+- Goal: ${profile.goal || 'muscle'} (adjust macros accordingly)
+- Any health markers from lab data (e.g., high cholesterol → low saturated fat, high blood sugar → low GI foods)
+
+Respond ONLY with valid JSON:
+{
+  "planName": "Short descriptive name for the meal plan",
+  "description": "1-2 sentence overview",
+  "targetCalories": 2200,
+  "macros": { "protein": 150, "carbs": 250, "fat": 70 },
+  "meals": [
+    {
+      "slot": "breakfast",
+      "name": "Meal name",
+      "ingredients": [
+        { "item": "Ingredient name", "quantity": "amount with unit" }
+      ],
+      "recipe": "Step-by-step cooking instructions (2-4 sentences)",
+      "prepTime": "15 min",
+      "macros": { "calories": 450, "protein": 30, "carbs": 50, "fat": 15 }
+    }
+  ],
+  "shoppingList": ["item 1", "item 2"],
+  "labBasedAdjustments": "If labs present: specific nutrition adjustments from lab data, else null",
+  "tips": ["Nutritional tip 1", "Tip 2"]
+}`;
+
+    try {
+      const contents = [{ parts: [{ text: prompt }] }];
+      const out = await callWithFallback(contents, { temperature: 0.7, maxOutputTokens: 4096 }, { needsVision: false });
+      if (out.err) return res.status(out.err).json({ error: out.msg });
+      const result = strip(out.raw);
+      if (!result) return res.status(502).json({ error: 'Could not parse meal plan response.' });
+      return res.status(200).json({ ok: true, result, model: out.modelId });
+    } catch (err) {
+      return res.status(500).json({ error: 'Meal plan generation failed: ' + err.message });
+    }
+  }
+
+  return res.status(400).json({ error: 'type must be chat | labs | labs-text | workout-plan | meal-plan' });
 }

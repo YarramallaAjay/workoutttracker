@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Iron Ledger</title>
-  <meta name="description" content="Measure your physique from a photo, get a training split built around it, and eat to match. Non-veg, vegetarian, vegan, Indian and budget diets included.">
+  <title>HealthPulse</title>
+  <meta name="description" content="Upload health reports, get AI-personalized workout plans, meal plans with recipes, and track your health markers.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#151B24" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Iron Ledger">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="HealthPulse">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="robots" content="noindex">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -425,17 +425,63 @@ dialog::backdrop{background:rgba(8,12,20,.6);backdrop-filter:blur(4px)}
 .guidance-result{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft)}
 .warn-note{border-color:var(--warn)!important;background:var(--warn-soft)!important}
 .lab-loading{display:flex;align-items:center;gap:8px;padding:8px 0}
+
+/* ---- floating AI chat ---- */
+.fab-chat{
+  position:fixed;bottom:calc(72px + env(safe-area-inset-bottom));right:16px;z-index:50;
+  width:52px;height:52px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));color:var(--accent-ink);
+  box-shadow:0 4px 16px color-mix(in srgb,var(--accent) 45%,transparent);
+  cursor:pointer;display:grid;place-items:center;
+  transition:transform .15s,box-shadow .15s;
+}
+.fab-chat:hover{transform:scale(1.08);box-shadow:0 6px 24px color-mix(in srgb,var(--accent) 55%,transparent)}
+.fab-chat:active{transform:scale(.95)}
+.fab-chat-panel{
+  position:fixed;bottom:calc(130px + env(safe-area-inset-bottom));right:16px;z-index:55;
+  width:calc(100vw - 32px);max-width:380px;max-height:60vh;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden;
+}
+.fab-chat-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line-soft)}
+.fab-chat-thread{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-height:120px;max-height:40vh}
+.fab-chat-input{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line-soft)}
+.fab-chat-input input{flex:1;padding:8px 12px;background:var(--surface-2);border:1.5px solid var(--line);border-radius:9px;font-size:13px}
+.fab-chat-input input:focus{border-color:var(--accent);background:var(--surface);outline:none}
+
+/* ---- onboarding ---- */
+.onboard-step{display:flex;flex-direction:column;gap:16px}
+.upload-zone{
+  border:2px dashed var(--line);border-radius:var(--r);padding:32px 20px;
+  text-align:center;cursor:pointer;transition:border-color .15s,background .15s;
+}
+.upload-zone:hover{border-color:var(--accent);background:var(--accent-soft)}
+
+/* ---- health markers ---- */
+.marker-group{margin-bottom:16px}
+.marker-group-head{font-family:Archivo,sans-serif;font-weight:700;font-size:14px;margin-bottom:8px;color:var(--ink)}
+.marker-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+.marker-name{font-size:13px;flex:1}
+.marker-val{font-family:"IBM Plex Mono",monospace;font-size:13px;min-width:80px;text-align:right}
+
+/* ---- recipe cards ---- */
+.recipe-card{border:1px solid var(--line-soft);border-radius:var(--r);padding:14px;margin-top:10px}
+.recipe-steps{font-size:13px;line-height:1.6;color:var(--ink-2)}
+.recipe-steps ol{margin:8px 0 0 18px;padding:0}
+.recipe-steps li{margin-bottom:4px}
+.recipe-meta{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.recipe-meta span{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3)}
 </style>
 </head>
 <body>
 <header class="bar">
   <div class="bar-in">
     <div class="mark" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round">
-        <path d="M2 6v4M14 6v4M4.5 4v8M11.5 4v8M4.5 8h7"/>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 8h3l2-5 2 10 2-5h5"/>
       </svg>
     </div>
-    <div class="brand">Iron Ledger<small>Train · Measure · Fuel</small></div>
+    <div class="brand">HealthPulse<small>Track · Plan · Thrive</small></div>
     <div class="bar-sp"></div>
     <button class="icon-btn" id="btnTheme" title="Switch theme" aria-label="Switch theme">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5v1.2M8 13.3v1.2M1.5 8h1.2M13.3 8h1.2M3.5 3.5l.9.9M11.6 11.6l.9.9M12.5 3.5l-.9.9M4.4 11.6l-.9.9"/><circle cx="8" cy="8" r="3.1"/></svg>
@@ -449,29 +495,29 @@ dialog::backdrop{background:rgba(8,12,20,.6);backdrop-filter:blur(4px)}
 <main>
   <div class="wrap">
 
-    <!-- ============ TODAY ============ -->
-    <section class="view on" id="v-today" role="tabpanel" aria-labelledby="t-today">
-      <div id="todayBody"></div>
+    <!-- ============ DASHBOARD ============ -->
+    <section class="view on" id="v-dashboard" role="tabpanel" aria-labelledby="t-dashboard">
+      <div id="dashBody"></div>
     </section>
 
-    <!-- ============ ANALYSE ============ -->
-    <section class="view" id="v-body" role="tabpanel" aria-labelledby="t-body">
-      <div id="bodyBody"></div>
+    <!-- ============ HEALTH ============ -->
+    <section class="view" id="v-health" role="tabpanel" aria-labelledby="t-health">
+      <div id="healthBody"></div>
     </section>
 
-    <!-- ============ PLAN ============ -->
-    <section class="view" id="v-plan" role="tabpanel" aria-labelledby="t-plan">
-      <div id="planBody"></div>
+    <!-- ============ WORKOUT ============ -->
+    <section class="view" id="v-workout" role="tabpanel" aria-labelledby="t-workout">
+      <div id="workoutBody"></div>
     </section>
 
-    <!-- ============ FUEL ============ -->
-    <section class="view" id="v-fuel" role="tabpanel" aria-labelledby="t-fuel">
-      <div id="fuelBody"></div>
+    <!-- ============ NUTRITION ============ -->
+    <section class="view" id="v-nutrition" role="tabpanel" aria-labelledby="t-nutrition">
+      <div id="nutritionBody"></div>
     </section>
 
-    <!-- ============ COMMUNITY ============ -->
-    <section class="view" id="v-crew" role="tabpanel" aria-labelledby="t-crew">
-      <div id="crewBody"></div>
+    <!-- ============ PROFILE ============ -->
+    <section class="view" id="v-profile" role="tabpanel" aria-labelledby="t-profile">
+      <div id="profileBody"></div>
     </section>
 
   </div>
@@ -479,23 +525,41 @@ dialog::backdrop{background:rgba(8,12,20,.6);backdrop-filter:blur(4px)}
 
 <nav class="tabs" role="tablist" aria-label="Sections">
   <div class="tabs-in">
-    <button class="tab" id="t-today" role="tab" aria-selected="true" aria-controls="v-today" data-v="today">
-      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 8v4M18 8v4M5.5 5.5v9M14.5 5.5v9M5.5 10h9"/></svg><span>Today</span>
+    <button class="tab" id="t-dashboard" role="tab" aria-selected="true" aria-controls="v-dashboard" data-v="dashboard">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 10 4l7 6.5V17a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M7.5 18v-5h5v5"/></svg><span>Home</span>
     </button>
-    <button class="tab" id="t-body" role="tab" aria-selected="false" aria-controls="v-body" data-v="body">
-      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="4" r="2.1"/><path d="M5.5 8.2h9M6.6 8.2 8 12l-.7 5M13.4 8.2 12 12l.7 5"/></svg><span>Body</span>
+    <button class="tab" id="t-health" role="tab" aria-selected="false" aria-controls="v-health" data-v="health">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17.5s-6.5-4.3-6.5-8.8a3.5 3.5 0 0 1 6.5-1.8 3.5 3.5 0 0 1 6.5 1.8c0 4.5-6.5 8.8-6.5 8.8z"/></svg><span>Health</span>
     </button>
-    <button class="tab" id="t-plan" role="tab" aria-selected="false" aria-controls="v-plan" data-v="plan">
-      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="3.5" width="14" height="13" rx="1.6"/><path d="M6.5 7.5h7M6.5 10.5h7M6.5 13.5h4"/></svg><span>Plan</span>
+    <button class="tab" id="t-workout" role="tab" aria-selected="false" aria-controls="v-workout" data-v="workout">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 8v4M18 8v4M5 5.5v9M15 5.5v9M5 10h10"/></svg><span>Workout</span>
     </button>
-    <button class="tab" id="t-fuel" role="tab" aria-selected="false" aria-controls="v-fuel" data-v="fuel">
-      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 2.5v6.2a2.4 2.4 0 0 0 4.8 0V2.5M7.4 8.9V17.5M14.6 17.5V11M14.6 11c1.4 0 2.2-1 2.2-3.2 0-2.6-1-5.3-2.2-5.3s-2.2 2.7-2.2 5.3c0 2.2.8 3.2 2.2 3.2Z"/></svg><span>Fuel</span>
+    <button class="tab" id="t-nutrition" role="tab" aria-selected="false" aria-controls="v-nutrition" data-v="nutrition">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 2.5v6.2a2.4 2.4 0 0 0 4.8 0V2.5M7.4 8.9V17.5M14.6 17.5V11M14.6 11c1.4 0 2.2-1 2.2-3.2 0-2.6-1-5.3-2.2-5.3s-2.2 2.7-2.2 5.3c0 2.2.8 3.2 2.2 3.2Z"/></svg><span>Nutrition</span>
     </button>
-    <button class="tab" id="t-crew" role="tab" aria-selected="false" aria-controls="v-crew" data-v="crew">
-      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7.2" cy="7" r="2.4"/><circle cx="14" cy="8.2" r="1.9"/><path d="M2.6 15.6c.4-2.5 2.2-3.9 4.6-3.9s4.2 1.4 4.6 3.9M13.2 12c2 .1 3.5 1.3 3.9 3.4"/></svg><span>Crew</span>
+    <button class="tab" id="t-profile" role="tab" aria-selected="false" aria-controls="v-profile" data-v="profile">
+      <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="6.5" r="2.8"/><path d="M3.6 17c.5-3.2 3-4.8 6.4-4.8s5.9 1.6 6.4 4.8"/></svg><span>Profile</span>
     </button>
   </div>
 </nav>
+
+<!-- Floating AI Chat Button -->
+<button class="fab-chat" id="fabChat" onclick="toggleFloatingChat()" aria-label="AI Chat">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+</button>
+<div class="fab-chat-panel" id="fabChatPanel" hidden>
+  <div class="fab-chat-head">
+    <span class="ai-badge">✦ AI Assistant</span>
+    <button class="icon-btn" onclick="toggleFloatingChat()" aria-label="Close chat" style="width:28px;height:28px;border-radius:8px">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </button>
+  </div>
+  <div class="fab-chat-thread" id="fabChatThread"></div>
+  <div class="fab-chat-input">
+    <input id="fabChatInput" type="text" placeholder="Ask about your health data…" onkeydown="if(event.key==='Enter')sendFabChat()">
+    <button class="btn sm" onclick="sendFabChat()">Send</button>
+  </div>
+</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -506,7 +570,7 @@ dialog::backdrop{background:rgba(8,12,20,.6);backdrop-filter:blur(4px)}
 
 <script>
 /* ============================================================
-   IRON LEDGER — data layer
+   HEALTHPULSE — data layer
    ============================================================ */
 const MUSCLES = {
   chest:'Chest', lats:'Back / lats', traps:'Upper back', delts_f:'Front delts', delts_s:'Side delts',
@@ -925,9 +989,11 @@ const KEY='ironledger.v1';
 const DEF={
   setup:false,
   profile:{name:'',sex:'male',age:25,heightCm:172,weightKg:70,experience:'beginner',days:4,
-           equipment:'full',goal:'muscle',diet:'veg',cuisine:'indian',budget:false,activity:'desk',planSeed:0},
+           equipment:'full',goal:'muscle',diet:'veg',cuisine:'indian',budget:false,activity:'desk',planSeed:0,
+           conditions:[],allergies:[]},
   measures:[],photos:[],plan:null,logs:[],active:null,dietDay:null,dietSeed:0,priorities:[],theme:null,
-  handle:'',crewCode:''
+  handle:'',crewCode:'',
+  aiWorkoutPlan:null,aiMealPlan:null
 };
 let S=structuredClone(DEF);
 function load(){ try{ const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(structuredClone(DEF),JSON.parse(raw)); }catch(e){} }
@@ -967,10 +1033,12 @@ function goalLabel(g){ return {cut:'Lose fat',recomp:'Recomp',muscle:'Build musc
 
 /* Session-only state; labs persist in localStorage */
 const AI={
-  convos:{coach:[],plan:[],fuel:[],body:[]},
-  results:{coach:null,plan:null,fuel:null,body:null},
+  convos:{coach:[],plan:[],fuel:[],body:[],health:[],fab:[]},
+  results:{coach:null,plan:null,fuel:null,body:null,health:null,fab:null},
   loading:'',
   labLoading:false,
+  workoutLoading:false,
+  mealLoading:false,
 };
 
 /* ---- lab persistence ---- */
@@ -1076,25 +1144,57 @@ async function pdfPageToImage(pdfDoc, pageNum){
 }
 
 /* ---- Process PDF: try text first, fall back to rendering page 1 as image ---- */
+function extractStructuredText(tc){
+  // Group text items by y-position (row detection) using transform[5]
+  const items=tc.items.filter(it=>it.str.trim());
+  if(!items.length) return '';
+  // Round y to nearest 2px to group items on the same line
+  const rows=new Map();
+  for(const it of items){
+    const y=Math.round((it.transform?it.transform[5]:0)/2)*2;
+    const x=it.transform?it.transform[4]:0;
+    if(!rows.has(y)) rows.set(y,[]);
+    rows.get(y).push({x,str:it.str});
+  }
+  // Sort rows by y descending (PDF y-axis is bottom-up), items by x ascending
+  const sortedYs=[...rows.keys()].sort((a,b)=>b-a);
+  const lines=[];
+  for(const y of sortedYs){
+    const row=rows.get(y).sort((a,b)=>a.x-b.x);
+    // Insert tab separators when x-gap > 15px to preserve columns
+    let line='';
+    let prevX=-Infinity;
+    for(const item of row){
+      const gap=item.x-prevX;
+      if(line&&gap>15) line+='\t';
+      else if(line&&gap>3) line+=' ';
+      line+=item.str;
+      prevX=item.x+(item.str.length*5); // approximate end position
+    }
+    lines.push(line);
+  }
+  return lines.join('\n');
+}
+
 async function processPdf(file){
   if(!window.pdfjsLib) await loadPdfJs();
   const ab=await file.arrayBuffer();
   const pdf=await window.pdfjsLib.getDocument({data:ab}).promise;
 
-  // Attempt text extraction (works for text-based PDFs)
+  // Attempt structured text extraction (preserves table layout)
   let text='';
   const pagesToScan=Math.min(pdf.numPages,15);
   for(let i=1;i<=pagesToScan;i++){
     const pg=await pdf.getPage(i);
     const tc=await pg.getTextContent();
-    text+=tc.items.map(it=>it.str).join(' ')+'\n';
+    text+=extractStructuredText(tc)+'\n\n';
   }
   text=text.trim();
 
   // If we got meaningful text (>120 chars of non-whitespace), use text mode
   const meaningful=text.replace(/\s+/g,'').length;
   if(meaningful>120){
-    return {type:'labs-text',text:text.slice(0,12000)};
+    return {type:'labs-text',text:text.slice(0,15000)};
   }
 
   // Scanned/image-based PDF — render first page as JPEG and use vision
@@ -1119,7 +1219,8 @@ async function aiFetch(url,opts,maxRetries=3){
 
 /* ---- lab upload with client-side pre-processing ---- */
 async function uploadLabs(file){
-  if(!file) return;
+  if(!file){ console.warn('uploadLabs: no file'); return; }
+  console.log('uploadLabs: starting, type=', file.type, 'size=', file.size);
   AI.labLoading=true; render();
   try{
     let payload;
@@ -1131,32 +1232,35 @@ async function uploadLabs(file){
       const {base64,mimeType}=await compressImage(file);
       payload={type:'labs',imageBase64:base64,mimeType};
     }
+    console.log('uploadLabs: payload ready, type=', payload.type);
     toast('Sending to AI…');
     const r=await aiFetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    console.log('uploadLabs: response status=', r.status);
     const json=await r.json();
+    console.log('uploadLabs: response=', json.ok, json.error||'');
     if(json.ok){
       saveLabs(json.result);
-      AI.results={coach:null,plan:null,fuel:null,body:null};
-      AI.convos={coach:[],plan:[],fuel:[],body:[]};
-      toast('Lab report extracted. Your AI coach now has your health data.');
+      AI.results={coach:null,plan:null,fuel:null,body:null,health:null,fab:null};
+      AI.convos={coach:[],plan:[],fuel:[],body:[],health:[],fab:[]};
+      toast('Lab report extracted! Go to Health tab to see your markers.');
     } else if(json.setup){
       toast('Add GEMINI_API_KEY to Vercel to enable lab analysis.');
     } else {
       toast(json.error||'Could not extract lab data.');
     }
-  }catch(e){ toast('File processing failed: '+e.message); }
+  }catch(e){ console.error('uploadLabs error:', e); toast('File processing failed: '+e.message); }
   AI.labLoading=false; render();
 }
 function deleteLabs(){
   if(!confirm('Remove your uploaded lab data?'))return;
   saveLabs(null);
-  AI.results={coach:null,plan:null,fuel:null,body:null};
-  AI.convos={coach:[],plan:[],fuel:[],body:[]};
+  AI.results={coach:null,plan:null,fuel:null,body:null,health:null,fab:null};
+  AI.convos={coach:[],plan:[],fuel:[],body:[],health:[],fab:[]};
   render(); toast('Lab data removed.');
 }
 
 /* ---- conversational AI ---- */
-const AI_PREP={coach:()=>prepCoachData(),plan:()=>prepPlanData(),fuel:()=>prepFuelData(),body:()=>prepBodyData()};
+const AI_PREP={coach:()=>prepCoachData(),plan:()=>prepPlanData(),fuel:()=>prepFuelData(),body:()=>prepBodyData(),health:()=>prepBodyData(),fab:()=>prepCoachData()};
 
 async function aiChat(context,userText,skipIntake){
   if(AI.loading===context) return;
@@ -1193,6 +1297,97 @@ function aiResetConvo(context){
   AI.convos[context]=[];
   AI.results[context]=null;
   render();
+}
+
+/* ---- AI plan generators ---- */
+async function generateAIWorkoutPlan(){
+  if(AI.workoutLoading) return;
+  AI.workoutLoading=true; render();
+  try{
+    const profile={...S.profile,labs:getLabs()};
+    const r=await aiFetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'workout-plan',profile})});
+    const json=await r.json();
+    if(json.ok){
+      S.aiWorkoutPlan=json.result;
+      save(); toast('AI workout plan generated!');
+    } else {
+      toast(json.error||'Could not generate workout plan.');
+    }
+  }catch(e){ toast('Could not reach AI. Check your connection.'); }
+  AI.workoutLoading=false; render();
+}
+
+async function generateAIMealPlan(){
+  if(AI.mealLoading) return;
+  AI.mealLoading=true; render();
+  try{
+    const profile={...S.profile,labs:getLabs()};
+    const r=await aiFetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'meal-plan',profile})});
+    const json=await r.json();
+    if(json.ok){
+      S.aiMealPlan=json.result;
+      save(); toast('AI meal plan generated!');
+    } else {
+      toast(json.error||'Could not generate meal plan.');
+    }
+  }catch(e){ toast('Could not reach AI. Check your connection.'); }
+  AI.mealLoading=false; render();
+}
+
+function renderAIWorkoutPlan(){
+  const plan=S.aiWorkoutPlan;
+  if(!plan||!plan.days) return '';
+  return `<div class="card pad stack" style="margin-bottom:14px">
+    <div class="between"><div><div class="eyebrow">AI-Generated Plan</div><h2 style="margin-top:3px">${esc(plan.planName||'Your AI Plan')}</h2></div>
+      <button class="btn ghost sm" onclick="generateAIWorkoutPlan()">Regenerate</button></div>
+    ${plan.description?`<p class="tiny muted">${esc(plan.description)}</p>`:''}
+    ${plan.labBasedAdjustments?`<div class="note warn-note" style="margin-top:8px"><b>Lab-based adjustments:</b> ${esc(plan.labBasedAdjustments)}</div>`:''}
+  </div>
+  ${plan.days.map((day,i)=>`<div class="card pad" style="margin-bottom:14px">
+    <div class="between"><div><div class="eyebrow">Day ${i+1}</div><h2 style="margin-top:3px">${esc(day.name)}</h2></div>
+      <span class="pill neutral">${esc(day.focus||'')}</span></div>
+    ${day.warmup?`<p class="tiny muted" style="margin-top:6px"><b>Warm-up:</b> ${esc(day.warmup)}</p>`:''}
+    <div class="rule" style="margin:10px 0"></div>
+    ${(day.exercises||[]).map((ex,j)=>`<div class="ex"><div class="ex-h"><div class="ex-i">${j+1}</div><div style="min-width:0;flex:1">
+      <div class="ex-n">${esc(ex.name)}</div>
+      <div class="ex-meta"><span>${ex.sets} \xD7 ${esc(String(ex.reps))}</span><span>Rest ${esc(ex.rest||'60s')}</span></div>
+      ${ex.notes?`<div class="tiny muted" style="margin-top:4px">${esc(ex.notes)}</div>`:''}
+      ${ex.alternatives?.length?`<div class="xtiny muted" style="margin-top:3px">Alt: ${ex.alternatives.map(a=>esc(a)).join(', ')}</div>`:''}
+    </div></div></div>`).join('')}
+    ${day.cooldown?`<p class="tiny muted" style="margin-top:8px"><b>Cool-down:</b> ${esc(day.cooldown)}</p>`:''}
+  </div>`).join('')}
+  ${plan.weeklyNotes?`<div class="card pad" style="margin-bottom:14px"><p class="tiny">${esc(plan.weeklyNotes)}</p></div>`:''}`;
+}
+
+function renderAIMealPlan(){
+  const plan=S.aiMealPlan;
+  if(!plan||!plan.meals) return '';
+  const slotName={breakfast:'Breakfast',lunch:'Lunch',snack:'Snack',dinner:'Dinner',pre_workout:'Pre-workout',post_workout:'Post-workout'};
+  return `<div class="card pad stack" style="margin-bottom:14px">
+    <div class="between"><div><div class="eyebrow">AI-Generated Meal Plan</div><h2 style="margin-top:3px">${esc(plan.planName||'Your AI Meal Plan')}</h2></div>
+      <button class="btn ghost sm" onclick="generateAIMealPlan()">Regenerate</button></div>
+    ${plan.description?`<p class="tiny muted">${esc(plan.description)}</p>`:''}
+    ${plan.targetCalories?`<div class="grid3" style="margin-top:10px">
+      <div class="tile"><span class="k">Calories</span><span class="v">${plan.targetCalories}<small> kcal</small></span></div>
+      ${plan.macros?`<div class="tile"><span class="k">Protein</span><span class="v">${plan.macros.protein}<small> g</small></span></div>
+      <div class="tile"><span class="k">Carbs</span><span class="v">${plan.macros.carbs}<small> g</small></span></div>`:''}
+    </div>`:''}
+    ${plan.labBasedAdjustments?`<div class="note warn-note" style="margin-top:8px"><b>Lab-based adjustments:</b> ${esc(plan.labBasedAdjustments)}</div>`:''}
+  </div>
+  ${plan.meals.map(meal=>`<div class="card pad recipe-card" style="margin-bottom:14px">
+    <div class="between"><div><div class="eyebrow">${esc(slotName[meal.slot]||meal.slot||'Meal')}</div>
+      <h3 style="margin-top:3px">${esc(meal.name)}</h3></div>
+      ${meal.prepTime?`<span class="pill neutral">${esc(meal.prepTime)}</span>`:''}</div>
+    ${meal.macros?`<div class="mono xtiny muted" style="margin-top:4px">${meal.macros.calories||''} kcal \xB7 P${meal.macros.protein||''}g \xB7 C${meal.macros.carbs||''}g \xB7 F${meal.macros.fat||''}g</div>`:''}
+    ${meal.ingredients?.length?`<div style="margin-top:8px"><div class="eyebrow" style="margin-bottom:4px">Ingredients</div>
+      <ul class="tiny" style="margin:0;padding-left:18px">${meal.ingredients.map(ing=>`<li>${esc(ing.item||ing)} ${ing.quantity?`<span class="muted">— ${esc(ing.quantity)}</span>`:''}</li>`).join('')}</ul></div>`:''}
+    ${meal.recipe?`<div style="margin-top:8px"><div class="eyebrow" style="margin-bottom:4px">Recipe</div><p class="tiny">${esc(meal.recipe)}</p></div>`:''}
+  </div>`).join('')}
+  ${plan.tips?.length?`<div class="card pad stack" style="margin-bottom:14px"><h3>Tips</h3>${plan.tips.map(t=>`<p class="tiny">• ${esc(t)}</p>`).join('')}</div>`:''}
+  ${plan.shoppingList?.length?`<div class="card pad stack" style="margin-bottom:14px"><h2>Shopping List</h2>
+    <ul class="tiny" style="margin:0;padding-left:18px">${plan.shoppingList.map(it=>`<li>${esc(it)}</li>`).join('')}</ul></div>`:''}`;
 }
 
 /* ---- AI render helpers ---- */
@@ -1349,7 +1544,7 @@ function lineChart(points,{w=320,h=88,unit=''}={}){
 }
 
 /* ---- router ---- */
-let VIEW='today';
+let VIEW='dashboard';
 function show(v){
   VIEW=v;
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
@@ -1359,16 +1554,25 @@ function show(v){
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>show(t.dataset.v)));
 function render(){
-  if(VIEW==='today') renderToday();
-  if(VIEW==='body') renderBody();
-  if(VIEW==='plan') renderPlan();
-  if(VIEW==='fuel') renderFuel();
-  if(VIEW==='crew') renderCrew();
+  if(VIEW==='dashboard') renderDashboard();
+  if(VIEW==='health') renderHealth();
+  if(VIEW==='workout') renderWorkout();
+  if(VIEW==='nutrition') renderNutrition();
+  if(VIEW==='profile') renderProfile();
 }
 
-/* ============================================================
-   TODAY
-   ============================================================ */
+/* ---- plan helpers ---- */
+function regenPlan(reshuffle){
+  if(reshuffle) S.profile.planSeed=(S.profile.planSeed||0)+1;
+  S.plan=buildPlan(S.profile,derivedPriorities());
+  save(); toast(reshuffle?'New exercise picks.':'Split built.');
+}
+function shapeName(plan){
+  const t=plan.shape.join(',');
+  if(t.includes('upper')) return 'Upper / Lower';
+  if(t.includes('push')) return plan.shape.includes('upperA')?'Push \xB7 Pull \xB7 Legs + Upper / Lower':'Push \xB7 Pull \xB7 Legs';
+  return 'Full body';
+}
 function nextDayIndex(){
   if(!S.plan) return 0;
   return S.logs.length % S.plan.days.length;
@@ -1382,36 +1586,26 @@ function lastPerf(exId){
 }
 function suggestion(block){
   const lp=lastPerf(block.ex);
-  if(!lp) return {text:'First time — pick a weight you could do '+(block.rh+2)+' times, stop at '+block.rh+'.',bump:false};
+  if(!lp) return {text:'First time \u2014 pick a weight you could do '+(block.rh+2)+' times, stop at '+block.rh+'.',bump:false};
   const top=lp.sets[0];
   const allTop=lp.sets.every(s=>Number(s.r)>=block.rh);
   const w=Number(top.w);
-  if(allTop&&w) return {text:`Last: ${lp.sets.map(s=>s.w+'×'+s.r).join(', ')} — add ${w>40?'5':'2.5'} kg today.`,bump:true};
-  return {text:`Last: ${lp.sets.map(s=>s.w+'×'+s.r).join(', ')} — same weight, chase one more rep.`,bump:false};
+  if(allTop&&w) return {text:`Last: ${lp.sets.map(s=>s.w+'\xD7'+s.r).join(', ')} \u2014 add ${w>40?'5':'2.5'} kg today.`,bump:true};
+  return {text:`Last: ${lp.sets.map(s=>s.w+'\xD7'+s.r).join(', ')} \u2014 same weight, chase one more rep.`,bump:false};
 }
 function weekLogs(){
   const now=new Date(); const d=new Date(now); d.setDate(now.getDate()-6);
   const from=d.toISOString().slice(0,10);
   return S.logs.filter(l=>l.d>=from);
 }
-function renderToday(){
-  const el=$('#todayBody');
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function renderDashboard(){
+  const el=$('#dashBody');
   if(!S.setup){
-    el.innerHTML=`
-    <div class="card pad stack">
-      <div><div class="eyebrow">Start here</div>
-        <h1 style="margin-top:6px">A gym log that also does the thinking.</h1></div>
-      <p class="muted" style="font-size:14.5px">Tell it your body, your gym and how you eat. It measures your physique from a photo, writes a split around your weak points, builds a day of food you would actually cook, and keeps the ledger while you train.</p>
-      <div class="rule"></div>
-      <ul class="tiny muted" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px">
-        <li><b style="color:var(--ink)">Body</b> — upload a photo, drag the calipers, get real ratios and a body-fat estimate.</li>
-        <li><b style="color:var(--ink)">Plan</b> — a split sized to your days, kit and experience, with weekly volume checked against the research.</li>
-        <li><b style="color:var(--ink)">Fuel</b> — calories and macros solved into meals for your diet: non-veg, egg, vegetarian, vegan, Indian, budget.</li>
-        <li><b style="color:var(--ink)">Crew</b> — a shared board for whoever you send this page to.</li>
-      </ul>
-      <button class="btn block" onclick="openProfile()">Set up my profile</button>
-      <p class="xtiny muted" style="text-align:center">Everything you log stays in this browser. Nothing is uploaded unless you post it to Crew.</p>
-    </div>`;
+    el.innerHTML=renderOnboarding();
     return;
   }
   if(S.active){ renderSession(); return; }
@@ -1419,65 +1613,127 @@ function renderToday(){
   const p=S.profile, plan=S.plan;
   const wl=weekLogs();
   const bf=currentBF();
+  const labs=getLabs();
   const idx=nextDayIndex();
   const day=plan?plan.days[idx]:null;
   const est=day?Math.round(day.blocks.reduce((a,b)=>a+b.sets*(b.rest+40)/60,0)):0;
   const wPts=S.measures.filter(m=>m.w).slice(-14).map(m=>({v:m.w,l:fmtDate(m.d)}));
-  const board=BOARD[(new Date().getDate())%BOARD.length];
   const streak=(()=>{ let n=0; const days=new Set(S.logs.map(l=>l.d));
     for(let i=0;i<60;i++){ const d=new Date(); d.setDate(d.getDate()-i); const k=d.toISOString().slice(0,10);
       if(days.has(k)) n++; else if(i>0&&n>0) break; } return n; })();
 
+  const healthScore=(()=>{
+    if(!labs||!labs.markers||!labs.markers.length) return null;
+    const normal=labs.markers.filter(m=>m.flag==='normal').length;
+    return Math.round(normal/labs.markers.length*100);
+  })();
+  const flagged=labs?(labs.markers||[]).filter(m=>m.flag!=='normal'):[];
+
   el.innerHTML=`
   <div class="between" style="margin-bottom:10px">
     <div><div class="eyebrow">${new Date().toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'})}</div>
-      <h1 style="margin-top:3px">${p.name?esc(p.name.split(' ')[0])+'’s ledger':'Your ledger'}</h1></div>
-  </div>
-  <div class="grid3" style="margin-bottom:12px">
-    <div class="tile"><span class="k">Sessions / 7d</span><span class="v">${wl.length}<small> of ${p.days}</small></span></div>
-    <div class="tile"><span class="k">Weight</span><span class="v">${currentWeight()}<small> kg</small></span></div>
-    <div class="tile"><span class="k">Body fat</span><span class="v">${bf!=null?bf:'—'}<small>${bf!=null?' %':''}</small></span>
-      ${bf!=null?`<span class="s">${bfBand(p.sex,bf).label}</span>`:'<span class="s">add tape numbers</span>'}</div>
+      <h1 style="margin-top:3px">${p.name?'Hi '+esc(p.name.split(' ')[0]):'Your Dashboard'}</h1></div>
   </div>
 
+  <div class="grid3" style="margin-bottom:12px">
+    <div class="tile"><span class="k">Health Score</span><span class="v">${healthScore!=null?healthScore:'\u2014'}<small>${healthScore!=null?' %':''}</small></span>
+      <span class="s">${healthScore!=null?(healthScore>=80?'Looking good':healthScore>=60?'Room to improve':'Needs attention'):'Upload labs'}</span></div>
+    <div class="tile"><span class="k">Weight</span><span class="v">${currentWeight()}<small> kg</small></span></div>
+    <div class="tile"><span class="k">Workouts / 7d</span><span class="v">${wl.length}<small> of ${p.days}</small></span></div>
+  </div>
+
+  ${flagged.length?`<div class="card pad" style="margin-bottom:14px">
+    <div class="sec-head"><div><div class="eyebrow">Flagged Markers</div><h3 style="margin-top:3px">${flagged.length} marker${flagged.length>1?'s':''} need attention</h3></div>
+      <button class="btn ghost sm" onclick="show('health')">View all</button></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${flagged.slice(0,6).map(m=>`<span class="pill ${m.flag==='high'?'bad':'warn'}">${esc(m.name)}: ${esc(String(m.value))} ${esc(m.unit||'')}</span>`).join('')}</div>
+  </div>`:''}
+
+  ${!labs?`<div class="card pad stack" style="margin-bottom:14px">
+    <div class="row" style="gap:10px"><span style="font-size:24px">\uD83E\uDE7A</span><div>
+      <h3>Upload your health report</h3>
+      <p class="tiny muted">Get personalized workout and nutrition plans based on your lab results.</p></div></div>
+    <div class="row" style="gap:8px">
+      <button class="btn sm" onclick="$('#dashLabFile').click()">Upload now</button>
+      <button class="btn ghost sm" onclick="show('health')">Go to Health tab</button>
+    </div>
+    <input type="file" id="dashLabFile" accept="image/*,application/pdf" hidden onchange="uploadLabs(this.files[0]);this.value=''">
+    ${AI.labLoading?`<div class="lab-loading"><span class="ai-spin"></span><span class="tiny muted">Processing your report\u2026</span></div>`:''}
+  </div>`:''}
+
   ${plan&&day?`
-  <div class="card">
+  <div class="card" style="margin-bottom:14px">
     <div class="pad">
       <div class="between">
-        <div><div class="eyebrow">Next session · day ${idx+1} of ${plan.days.length}</div>
+        <div><div class="eyebrow">Today's Workout \xB7 day ${idx+1} of ${plan.days.length}</div>
           <h2 style="margin-top:4px">${esc(day.name)}</h2></div>
-        <span class="pill neutral">${day.blocks.length} lifts · ~${est}m</span>
+        <span class="pill neutral">${day.blocks.length} exercises \xB7 ~${est}m</span>
       </div>
       <div class="rule" style="margin:11px 0"></div>
       <div class="tiny muted" style="display:flex;flex-wrap:wrap;gap:5px 12px">
-        ${day.blocks.map(b=>`<span>${esc(EXBY[b.ex].n)} <span class="mono" style="color:var(--ink-3)">${b.sets}×${b.rl}–${b.rh}</span></span>`).join('')}
+        ${day.blocks.slice(0,5).map(b=>`<span>${esc(EXBY[b.ex].n)} <span class="mono" style="color:var(--ink-3)">${b.sets}\xD7${b.rl}\u2013${b.rh}</span></span>`).join('')}
       </div>
-      <button class="btn block" style="margin-top:13px" onclick="startSession(${idx})">Start · ${esc(day.name)}</button>
+      <button class="btn block" style="margin-top:13px" onclick="startSession(${idx})">Start Workout</button>
     </div>
   </div>`:`
-  <div class="card pad stack">
-    <h2>No split yet</h2>
-    <p class="tiny muted">Build one from your days, equipment and weak points. It takes a second and you can regenerate it any time.</p>
-    <button class="btn" onclick="show('plan')">Build my split</button>
+  <div class="card pad stack" style="margin-bottom:14px">
+    <h2>No workout plan yet</h2>
+    <p class="tiny muted">Generate a personalized workout plan based on your profile and health data.</p>
+    <button class="btn" onclick="show('workout')">Get my plan</button>
   </div>`}
 
-  ${wPts.length>1?`<div class="card pad">
-    <div class="sec-head"><div><div class="eyebrow">Bodyweight</div><h3 style="margin-top:3px">${wPts[0].v} → ${wPts[wPts.length-1].v} kg</h3></div>
-      <span class="pill ${wPts[wPts.length-1].v>=wPts[0].v?'neutral':'neutral'}">${(wPts[wPts.length-1].v-wPts[0].v>0?'+':'')}${r1(wPts[wPts.length-1].v-wPts[0].v)} kg</span></div>
+  ${S.dietDay?`<div class="card pad" style="margin-bottom:14px">
+    <div class="sec-head"><div><div class="eyebrow">Today's Nutrition</div><h3 style="margin-top:3px">${S.dietDay.meals.length} meals \xB7 ${Math.round(S.dietDay.totals.k)} kcal</h3></div>
+      <button class="btn ghost sm" onclick="show('nutrition')">Details</button></div>
+    <div class="tiny muted" style="display:flex;flex-wrap:wrap;gap:5px 12px">
+      ${S.dietDay.meals.map(ml=>`<span>${esc(ml.tpl.n)}</span>`).join(' \xB7 ')}
+    </div>
+  </div>`:''}
+
+  ${wPts.length>1?`<div class="card pad" style="margin-bottom:14px">
+    <div class="sec-head"><div><div class="eyebrow">Weight Trend</div><h3 style="margin-top:3px">${wPts[0].v} \u2192 ${wPts[wPts.length-1].v} kg</h3></div>
+      <span class="pill neutral">${(wPts[wPts.length-1].v-wPts[0].v>0?'+':'')}${r1(wPts[wPts.length-1].v-wPts[0].v)} kg</span></div>
     ${lineChart(wPts,{unit:' kg'})}
   </div>`:''}
 
-  <div class="card pad">
-    <div class="eyebrow">From the research desk</div>
-    <h3 style="margin-top:5px">${esc(board.t)}</h3>
-    <p class="tiny muted" style="margin-top:6px">${esc(board.b)}</p>
-    <p class="xtiny" style="margin-top:8px"><a href="${board.u}" target="_blank" rel="noopener">${esc(board.s)} ↗</a></p>
-  </div>
-
-  ${labsBannerHtml()}
   ${aiCoachHtml()}
-  ${streak>1?`<p class="xtiny muted" style="text-align:center;margin-top:12px">${streak} day streak. ${S.logs.length} sessions logged all time.</p>`:''}
+  ${streak>1?`<p class="xtiny muted" style="text-align:center;margin-top:12px">${streak} day streak. ${S.logs.length} sessions logged.</p>`:''}
   <div style="height:8px"></div>`;
+}
+
+/* ---- Onboarding ---- */
+function renderOnboarding(){
+  return `
+  <div class="card pad stack">
+    <div><div class="eyebrow">Welcome to</div>
+      <h1 style="margin-top:6px">HealthPulse</h1></div>
+    <p class="muted" style="font-size:14.5px">Your personal health tracking and wellness companion. Upload your health reports, get AI-personalized workout plans, meal plans with recipes, and track your health markers.</p>
+    <div class="rule"></div>
+    <ul class="tiny muted" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px">
+      <li><b style="color:var(--ink)">Health</b> \u2014 upload lab reports, track health markers and trends over time.</li>
+      <li><b style="color:var(--ink)">Workout</b> \u2014 AI-personalized workout plans tailored to your health and goals.</li>
+      <li><b style="color:var(--ink)">Nutrition</b> \u2014 meal plans with recipes, personalized to your health markers.</li>
+      <li><b style="color:var(--ink)">Profile</b> \u2014 body measurements, photos, and settings.</li>
+    </ul>
+    <div class="rule"></div>
+    <h3 style="margin-top:4px">Get started</h3>
+    <p class="tiny muted">Upload a health report first for the best experience, or skip to fill in your details manually.</p>
+    <div class="upload-zone" onclick="$('#onboardLabFile').click()">
+      <div style="font-size:36px;margin-bottom:10px">\uD83E\uDE7A</div>
+      <p class="tiny" style="font-weight:600;margin-bottom:4px">Upload Health Report</p>
+      <p class="xtiny muted">Blood test, hormone panel, or health report (image or PDF)</p>
+    </div>
+    <input type="file" id="onboardLabFile" accept="image/*,application/pdf" hidden onchange="handleOnboardUpload(this.files[0]);this.value=''">
+    ${AI.labLoading?`<div class="lab-loading"><span class="ai-spin"></span><span class="tiny muted">Processing your report\u2026</span></div>`:''}
+    <button class="btn block" onclick="openProfile()">Skip \u2014 set up manually</button>
+    <p class="xtiny muted" style="text-align:center">Everything stays in your browser. Nothing is uploaded except to AI for analysis.</p>
+  </div>`;
+}
+
+async function handleOnboardUpload(file){
+  if(!file) return;
+  await uploadLabs(file);
+  const labs=getLabs();
+  if(labs) openProfile();
 }
 
 /* ---- live session ---- */
@@ -1508,7 +1764,7 @@ function startRest(sec){
   document.body.appendChild(bar);
   const tick=()=>{ const n=$('#restN'); if(!n) return stopRest();
     n.textContent='Rest '+Math.floor(restLeft/60)+':'+String(restLeft%60).padStart(2,'0');
-    if(restLeft<=0){ n.textContent='Rest done — next set.'; clearInterval(restT); setTimeout(stopRest,3000); } restLeft--; };
+    if(restLeft<=0){ n.textContent='Rest done \u2014 next set.'; clearInterval(restT); setTimeout(stopRest,3000); } restLeft--; };
   tick(); restT=setInterval(tick,1000);
 }
 function setVal(ei,si,k,v){ S.active.entries[ei].sets[si][k]=v; save(); }
@@ -1520,13 +1776,13 @@ function toggleSet(ei,si){
 }
 function addSet(ei){ const e=S.active.entries[ei]; e.sets.push({w:e.sets.at(-1)?.w||'',r:'',done:false}); save(); renderSession(); }
 function renderSession(){
-  const a=S.active, el=$('#todayBody');
+  const a=S.active, el=$('#dashBody');
   const doneSets=a.entries.reduce((n,e)=>n+e.sets.filter(s=>s.done).length,0);
   const allSets=a.entries.reduce((n,e)=>n+e.sets.length,0);
   const mins=Math.round((Date.now()-a.startedAt)/60000);
   el.innerHTML=`
   <div class="between" style="margin-bottom:10px">
-    <div><div class="eyebrow">In progress · ${mins} min</div><h1 style="margin-top:3px">${esc(a.name)}</h1></div>
+    <div><div class="eyebrow">In progress \xB7 ${mins} min</div><h1 style="margin-top:3px">${esc(a.name)}</h1></div>
     <span class="pill ${doneSets===allSets?'good':'neutral'}">${doneSets}/${allSets} sets</span>
   </div>
   <div class="meter" style="margin-bottom:12px"><i class="${doneSets===allSets?'good':''}" style="width:${allSets?doneSets/allSets*100:0}%"></i></div>
@@ -1536,7 +1792,7 @@ function renderSession(){
     return `<div class="ex">
       <div class="ex-h"><div class="ex-i">${ei+1}</div><div style="min-width:0;flex:1">
         <div class="ex-n">${esc(ex.n)}</div>
-        <div class="ex-meta"><span>${e.plan.sets}×${e.plan.rl}–${e.plan.rh}</span><span>RIR ${e.plan.rir}</span><span>rest ${e.plan.rest}s</span></div>
+        <div class="ex-meta"><span>${e.plan.sets}\xD7${e.plan.rl}\u2013${e.plan.rh}</span><span>RIR ${e.plan.rir}</span><span>rest ${e.plan.rest}s</span></div>
         <div class="tiny ${sg.bump?'':'muted'}" style="margin-top:5px;${sg.bump?'color:var(--good)':''}">${esc(sg.text)}</div>
       </div></div>
       <div class="setgrid" style="margin-top:9px">
@@ -1555,17 +1811,321 @@ function renderSession(){
   </div>
   <div class="card pad stack" style="margin-top:12px">
     <label class="f"><span class="lb">Session notes</span>
-      <textarea rows="2" placeholder="Elbow felt fine today. Bench moved well." oninput="S.active.notes=this.value;save()">${esc(a.notes)}</textarea></label>
+      <textarea rows="2" placeholder="How did it feel today?" oninput="S.active.notes=this.value;save()">${esc(a.notes)}</textarea></label>
     <button class="btn block" onclick="endSession(true)">Finish and log</button>
     <button class="btn ghost block" onclick="if(confirm('Discard this session?'))endSession(false)">Discard</button>
   </div><div style="height:8px"></div>`;
 }
 
 /* ============================================================
-   BODY — photo calipers + measurements
+   HEALTH \u2014 lab reports, markers, trends
+   ============================================================ */
+const MARKER_CATEGORIES={
+  'Blood Sugar':['Glucose','HbA1c','Fasting Glucose','Insulin','HOMA-IR'],
+  'Lipids':['Total Cholesterol','LDL','HDL','Triglycerides','VLDL','LDL/HDL Ratio','Total Cholesterol/HDL Ratio'],
+  'Thyroid':['TSH','T3','T4','Free T3','Free T4'],
+  'Vitamins':['Vitamin D','Vitamin B12','Folate','Iron','Ferritin'],
+  'Liver':['SGOT','SGPT','ALT','AST','ALP','GGT','Bilirubin','Albumin','Total Protein'],
+  'Kidney':['Creatinine','BUN','Urea','Uric Acid','eGFR'],
+  'Hormones':['Testosterone','Estradiol','Cortisol','DHEA','Prolactin','LH','FSH'],
+  'Blood Count':['Hemoglobin','RBC','WBC','Platelets','Hematocrit','MCV','MCH','MCHC'],
+};
+
+function categorizeMarkers(markers){
+  if(!markers||!markers.length) return [];
+  const cats=[];
+  const used=new Set();
+  for(const [catName,keywords] of Object.entries(MARKER_CATEGORIES)){
+    const matched=markers.filter(m=>{
+      const n=m.name.toLowerCase();
+      return keywords.some(k=>n.includes(k.toLowerCase()));
+    });
+    if(matched.length){
+      cats.push({name:catName,markers:matched});
+      matched.forEach(m=>used.add(m.name));
+    }
+  }
+  const other=markers.filter(m=>!used.has(m.name));
+  if(other.length) cats.push({name:'Other',markers:other});
+  return cats;
+}
+
+function renderHealth(){
+  const el=$('#healthBody');
+  if(!S.setup){ el.innerHTML='<div class="card pad stack"><h2>Set up your profile first</h2><p class="tiny muted">Create your profile to start tracking your health.</p><button class="btn" onclick="openProfile()">Set up profile</button></div>'; return; }
+
+  const labs=getLabs();
+  const categories=labs?categorizeMarkers(labs.markers):[];
+  const flagged=labs?(labs.markers||[]).filter(m=>m.flag!=='normal'):[];
+
+  const healthScore=(()=>{
+    if(!labs||!labs.markers||!labs.markers.length) return null;
+    const normal=labs.markers.filter(m=>m.flag==='normal').length;
+    return Math.round(normal/labs.markers.length*100);
+  })();
+
+  el.innerHTML=`
+  <div style="margin-bottom:10px"><div class="eyebrow">Health Dashboard</div><h1 style="margin-top:3px">Your Health Markers</h1></div>
+
+  ${healthScore!=null?`<div class="grid3" style="margin-bottom:14px">
+    <div class="tile"><span class="k">Health Score</span><span class="v">${healthScore}<small> %</small></span>
+      <span class="s">${healthScore>=80?'Excellent':healthScore>=60?'Good':'Needs attention'}</span></div>
+    <div class="tile"><span class="k">Total Markers</span><span class="v">${labs.markers.length}</span></div>
+    <div class="tile"><span class="k">Flagged</span><span class="v">${flagged.length}</span>
+      <span class="s">${flagged.length===0?'All normal':'Needs review'}</span></div>
+  </div>`:''}
+
+  ${labsPanelHtml()}
+
+  ${categories.length?`
+  <div class="card pad stack" style="margin-top:14px">
+    <h2>Markers by Category</h2>
+    ${categories.map(cat=>`
+      <div class="marker-group">
+        <div class="marker-group-head">${esc(cat.name)}</div>
+        ${cat.markers.map(m=>`<div class="marker-row">
+          <span class="marker-name">${esc(m.name)}</span>
+          <span class="marker-val">${esc(String(m.value))} ${esc(m.unit||'')}</span>
+          <span class="pill ${m.flag==='high'?'bad':m.flag==='low'?'warn':'good'}" style="margin-left:8px">${esc(m.flag||'\u2014')}</span>
+        </div>`).join('')}
+      </div>`).join('')}
+  </div>`:''}
+
+  ${labs?`<div class="card pad stack" style="margin-top:14px">
+    <h2>\u2726 Get AI Plans</h2>
+    <p class="tiny muted">Use your health data to generate personalized plans.</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px">
+      ${AI.workoutLoading?`<span class="ai-spin"></span>`:`<button class="btn sm" onclick="generateAIWorkoutPlan();show('workout')">\u2726 AI Workout Plan</button>`}
+      ${AI.mealLoading?`<span class="ai-spin"></span>`:`<button class="btn sm" onclick="generateAIMealPlan();show('nutrition')">\u2726 AI Meal Plan</button>`}
+    </div>
+  </div>`:''}
+
+  ${aiChatHtml('health','\u2726 AI Health Analysis','Your AI health analyst will review your lab results and provide personalized recommendations for improving your health markers.')}
+
+  <div style="height:8px"></div>`;
+}
+
+/* ============================================================
+   WORKOUT \u2014 AI plans + session logger
+   ============================================================ */
+function renderWorkout(){
+  const el=$('#workoutBody'), p=S.profile;
+  if(!S.setup){ el.innerHTML='<div class="card pad stack"><h2>Set up your profile first</h2><button class="btn" onclick="openProfile()">Set up profile</button></div>'; return; }
+
+  if(!S.plan&&!S.aiWorkoutPlan){
+    el.innerHTML=`<div class="card pad stack">
+      <h2>Get your workout plan</h2>
+      <p class="tiny muted">${p.days} days a week \xB7 ${p.experience} \xB7 ${({full:'full gym',home:'dumbbells at home',minimal:'bodyweight and bands'})[p.equipment]}. Change any of that in your profile.</p>
+      ${AI.workoutLoading?`<div class="lab-loading"><span class="ai-spin"></span><span class="tiny muted">Generating your personalized plan\u2026</span></div>`:`
+      <button class="btn block" onclick="generateAIWorkoutPlan()" style="margin-bottom:8px">\u2726 Generate AI Workout Plan</button>
+      <p class="xtiny muted" style="text-align:center">Personalized based on your profile${getLabs()?' and health markers':''}</p>
+      <div class="rule"></div>
+      <button class="btn ghost block" onclick="regenPlan();renderWorkout()">Use basic plan instead</button>`}
+    </div>`;
+    return;
+  }
+
+  // Show AI workout plan if available
+  if(S.aiWorkoutPlan&&!S.plan){
+    el.innerHTML=`
+    <div style="margin-bottom:10px"><div class="eyebrow">AI-Personalized Plan</div><h1 style="margin-top:3px">Your Workout Plan</h1></div>
+    <div class="row" style="gap:7px;flex-wrap:wrap;margin-bottom:12px">
+      ${AI.workoutLoading?`<span class="ai-spin"></span>`:`<button class="btn sm" onclick="generateAIWorkoutPlan()">\u2726 Regenerate AI Plan</button>`}
+      <button class="btn ghost sm" onclick="regenPlan();renderWorkout()">Switch to basic plan</button>
+      <button class="btn ghost sm" onclick="openProfile()">Change settings</button>
+    </div>
+    ${renderAIWorkoutPlan()}
+    ${aiPlanHtml()}
+    ${S.logs.length?`<div class="card pad stack" style="margin-top:14px">
+      <h2>Recent sessions</h2>
+      ${S.logs.slice(-5).reverse().map(l=>`<div style="border-top:1px solid var(--line-soft);padding:8px 0">
+        <div class="between"><span class="tiny" style="font-weight:600">${esc(l.name)}</span><span class="pill neutral">${fmtDate(l.d)}</span></div>
+        <div class="xtiny muted" style="margin-top:3px">${l.entries.length} exercises \xB7 ${l.dur||'?'} min</div>
+      </div>`).join('')}
+    </div>`:''}
+    <div style="height:8px"></div>`;
+    return;
+  }
+
+  const plan=S.plan, vol=weeklyVolume(plan), [lo,hi]=volTarget(plan.exp);
+  const prio=derivedPriorities();
+  const rows=Object.entries(MUSCLES).filter(([k])=>vol[k]>0).sort((a,b)=>vol[b[0]]-vol[a[0]]);
+  const idx=nextDayIndex();
+
+  el.innerHTML=`
+  <div class="between" style="margin-bottom:10px">
+    <div><div class="eyebrow">${plan.days.length}-day rotation \xB7 ${plan.exp}</div><h1 style="margin-top:3px">${shapeName(plan)}</h1></div>
+  </div>
+  <div class="row" style="gap:7px;flex-wrap:wrap;margin-bottom:12px">
+    <button class="btn sm" onclick="generateAIWorkoutPlan()">\u2726 Get AI Plan</button>
+    <button class="btn sm" onclick="regenPlan(true);renderWorkout()">Swap exercises</button>
+    <button class="btn ghost sm" onclick="regenPlan();renderWorkout()">Rebuild</button>
+    <button class="btn ghost sm" onclick="openProfile()">Change settings</button>
+  </div>
+
+  <div class="card pad" style="margin-bottom:14px">
+    <div class="sec-head"><div><div class="eyebrow">Weekly volume per muscle</div>
+      <h3 style="margin-top:3px">Target ${lo}\u2013${hi} sets for ${plan.exp}s</h3></div></div>
+    ${rows.map(([k,label])=>{
+      const v=vol[k], [mlo,mhi]=volTargetFor(k,plan.exp);
+      const kind=v<mlo?'warn':v>mhi?'bad':'good';
+      const w=clamp(v/(mhi*1.25)*100,3,100);
+      return `<div class="vol-row"><span class="tiny${prio.includes(k)?'" style="font-weight:600':''}">${label}</span>
+        <span class="meter" title="target ${mlo}\u2013${mhi}"><i class="${kind}" style="width:${w}%"></i></span>
+        <span class="mono tiny" style="text-align:right;color:var(--ink-2)">${v%1?v.toFixed(1):v} sets</span></div>`;
+    }).join('')}
+  </div>
+
+  ${plan.days.map((d,i)=>`<div class="card pad" style="margin-bottom:14px">
+    <div class="between"><div><div class="eyebrow">Day ${i+1}${i===idx?' \xB7 Up next':''}</div><h2 style="margin-top:3px">${esc(d.name)}</h2></div>
+      <button class="btn ghost sm" onclick="startSession(${i});show('dashboard')">Train this</button></div>
+    <div class="rule" style="margin:11px 0"></div>
+    ${d.blocks.map((b,j)=>{ const e=EXBY[b.ex];
+      return `<div class="ex"><div class="ex-h"><div class="ex-i">${j+1}</div><div style="min-width:0;flex:1">
+        <div class="ex-n">${esc(e.n)}</div>
+        <div class="ex-meta"><span>${b.sets} \xD7 ${b.rl}\u2013${b.rh}</span><span>RIR ${b.rir}</span><span>${b.rest}s rest</span>
+          <a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to '+e.n+' proper form')}" target="_blank" rel="noopener">form \u2197</a></div>
+      </div></div><div class="ex-cue">${esc(e.c)}</div></div>`;}).join('')}
+  </div>`).join('')}
+
+  ${aiPlanHtml()}
+
+  ${S.logs.length?`<div class="card pad stack" style="margin-top:14px">
+    <h2>Recent sessions</h2>
+    ${S.logs.slice(-5).reverse().map(l=>`<div style="border-top:1px solid var(--line-soft);padding:8px 0">
+      <div class="between"><span class="tiny" style="font-weight:600">${esc(l.name)}</span><span class="pill neutral">${fmtDate(l.d)}</span></div>
+      <div class="xtiny muted" style="margin-top:3px">${l.entries.length} exercises \xB7 ${l.dur||'?'} min</div>
+    </div>`).join('')}
+  </div>`:''}
+
+  <div style="height:8px"></div>`;
+}
+
+/* ============================================================
+   NUTRITION \u2014 meal plans with recipes
+   ============================================================ */
+function setDiet(k,v){ S.profile[k]=v; S.dietDay=null; save(); renderNutrition(); }
+function regenDiet(shuffle){
+  const t=nutritionTargets(S.profile,currentBF());
+  if(shuffle) S.dietSeed=(S.dietSeed||0)+1;
+  S.dietDay=buildDay(S.profile,t,S.dietSeed||0);
+  S.dietDay.targets=t; save();
+}
+
+function renderNutrition(){
+  const el=$('#nutritionBody'), p=S.profile;
+  if(!S.setup){ el.innerHTML='<div class="card pad stack"><h2>Set up your profile first</h2><button class="btn" onclick="openProfile()">Set up profile</button></div>'; return; }
+  const t=nutritionTargets(p,currentBF());
+  if(!S.dietDay) regenDiet(false);
+  const day=S.dietDay, tot=day.totals;
+  const pct=(a,b)=>clamp(a/b*100,0,140);
+  const dietOpts=[['nonveg','Non-veg'],['egg','Egg + veg'],['veg','Vegetarian'],['vegan','Vegan']];
+  const slotName={breakfast:'Breakfast',lunch:'Lunch',snack:'Snack',dinner:'Dinner'};
+
+  el.innerHTML=`
+  <div style="margin-bottom:10px"><div class="eyebrow">${goalLabel(p.goal)} \xB7 ${t.tdee} kcal maintenance</div>
+    <h1 style="margin-top:3px">${t.kcal} kcal a day</h1></div>
+
+  <div class="card pad stack" style="margin-bottom:14px">
+    <div class="between"><h2>\u2726 AI Meal Plan</h2>
+      ${S.aiMealPlan?`<button class="btn ghost sm" onclick="S.aiMealPlan=null;save();renderNutrition()">Show basic plan</button>`:''}</div>
+    ${S.aiMealPlan?'':`<p class="tiny muted">Get a personalized meal plan with full recipes, tailored to your health markers and diet preferences.</p>`}
+    ${AI.mealLoading?`<div class="lab-loading"><span class="ai-spin"></span><span class="tiny muted">Generating your personalized meal plan\u2026</span></div>`
+      :S.aiMealPlan?'':
+      `<button class="btn block" onclick="generateAIMealPlan()">\u2726 Generate AI Meal Plan with Recipes</button>
+       <p class="xtiny muted" style="text-align:center;margin-top:4px">Includes ingredients, recipes, and shopping list${getLabs()?' \u2014 personalized to your health markers':''}</p>`}
+  </div>
+
+  ${S.aiMealPlan?renderAIMealPlan():''}
+
+  <div class="grid3" style="margin-bottom:12px">
+    <div class="tile"><span class="k">Protein</span><span class="v">${t.protein}<small> g</small></span><span class="s">${r1(t.protein/currentWeight())} g/kg</span></div>
+    <div class="tile"><span class="k">Carbs</span><span class="v">${t.carb}<small> g</small></span></div>
+    <div class="tile"><span class="k">Fat</span><span class="v">${t.fat}<small> g</small></span></div>
+  </div>
+
+  ${aiFuelHtml()}
+
+  <div class="card pad stack" style="margin-bottom:14px">
+    <h2>Diet Preferences</h2>
+    <div class="chips">${dietOpts.map(([k,l])=>`<button class="chip" aria-pressed="${p.diet===k}" onclick="setDiet('diet','${k}')">${l}</button>`).join('')}</div>
+    <div class="chips">
+      <button class="chip" aria-pressed="${p.cuisine==='indian'}" onclick="setDiet('cuisine','indian')">Indian only</button>
+      <button class="chip" aria-pressed="${p.cuisine==='any'}" onclick="setDiet('cuisine','any')">Anything</button>
+      <button class="chip" aria-pressed="${!!p.budget}" onclick="setDiet('budget',${!p.budget})">Budget-friendly</button>
+    </div>
+  </div>
+
+  <div class="card pad" style="margin-bottom:14px">
+    <div class="between" style="margin-bottom:4px">
+      <div><div class="eyebrow">Today's meals</div><h2 style="margin-top:3px">${day.meals.length} meals</h2></div>
+      <button class="btn ghost sm" onclick="regenDiet(true);renderNutrition()">Shuffle</button>
+    </div>
+    <div class="rule" style="margin:10px 0"></div>
+    ${day.meals.map((ml,mi)=>{ const mac=macrosOf(ml.items);
+      return `<div class="meal">
+        <div class="between"><div><div class="eyebrow">${slotName[ml.tpl.s]}</div>
+          <h3 style="margin-top:3px">${esc(ml.tpl.n)}</h3></div>
+          <button class="btn ghost sm" onclick="swapMeal(${mi})">Swap</button></div>
+        <div style="margin-top:7px">${ml.items.map(([id,g])=>`<div class="food"><b>${esc(F[id].n)}</b><span class="mono">${g} g</span></div>`).join('')}</div>
+        <div class="mono xtiny" style="margin-top:6px;color:var(--ink-3)">${Math.round(mac.k)} kcal \xB7 P ${Math.round(mac.p)} \xB7 C ${Math.round(mac.c)} \xB7 F ${Math.round(mac.f)} \xB7 \u2248\u20B9${Math.round(mac.cost)}</div>
+      </div>`;}).join('')}
+    <div class="rule major" style="margin:12px 0"></div>
+    <div class="stack" style="gap:8px">
+      ${[['Calories',Math.round(tot.k),t.kcal,'kcal'],['Protein',Math.round(tot.p),t.protein,'g'],['Carbs',Math.round(tot.c),t.carb,'g'],['Fat',Math.round(tot.f),t.fat,'g']].map(([l,v,g,u])=>`
+        <div class="vol-row" style="grid-template-columns:64px 1fr 92px;border:0;padding:2px 0">
+          <span class="tiny">${l}</span>
+          <span class="meter"><i class="${Math.abs(v-g)/g<0.08?'good':Math.abs(v-g)/g<0.18?'warn':'bad'}" style="width:${pct(v,g)}%"></i></span>
+          <span class="mono tiny" style="text-align:right;color:var(--ink-2)">${v} / ${g} ${u}</span>
+        </div>`).join('')}
+    </div>
+    <p class="xtiny muted" style="margin-top:9px">Rough cost: <b>\u2248\u20B9${Math.round(tot.cost)}</b>${p.budget?' \u2014 budget mode on.':'.'}</p>
+  </div>
+
+  <div class="card pad stack" style="margin-bottom:14px">
+    <h2>Shopping list</h2>
+    <div class="scroll-x"><table class="data"><thead><tr><th>Item</th><th>Amount</th><th>Protein</th><th>\u2248 Cost</th></tr></thead><tbody>
+    ${(()=>{ const agg={};
+      day.meals.forEach(m=>m.items.forEach(([id,g])=>agg[id]=(agg[id]||0)+g));
+      return Object.entries(agg).sort((a,b)=>F[b[0]].p*b[1]-F[a[0]].p*a[1]).map(([id,g])=>
+        `<tr><td>${esc(F[id].n)}</td><td class="mono">${g} g</td><td class="mono">${r1(F[id].p*g/100)} g</td><td class="mono">\u20B9${Math.round(F[id].r*g/100)}</td></tr>`).join('');
+    })()}
+    </tbody></table></div>
+  </div>
+
+  <div style="height:8px"></div>`;
+}
+
+function swapMeal(mi){
+  const p=S.profile, cur=S.dietDay.meals[mi].tpl;
+  const pool=eligibleMeals(p).filter(m=>m.s===cur.s);
+  if(pool.length<2){ toast('No other meal fits these filters yet.'); return; }
+  const i=pool.findIndex(m=>m.n===cur.n);
+  const next=pool[(i+1+pool.length)%pool.length];
+  const t=S.dietDay.targets||nutritionTargets(p,currentBF());
+  S.dietDay=buildDay(p,t,S.dietSeed||0);
+  S.dietDay.meals[mi]={tpl:next,items:next.i.map(x=>[x[0],x[1],x[2]])};
+  const meals=S.dietDay.meals;
+  const roleTotal=(role,key)=>meals.reduce((a,ml)=>a+ml.items.filter(i=>i[2]===role).reduce((b,i)=>b+(F[i[0]]?.[key]||0)*i[1]/100,0),0);
+  const scaleRole=(role,f)=>meals.forEach(ml=>ml.items.forEach(i=>{ if(i[2]===role) i[1]=clamp(i[1]*f,i[1]*0.45,i[1]*2.6); }));
+  for(let pass=0;pass<3;pass++){
+    let cur2=macrosOf(meals.flatMap(m=>m.items));
+    const pr=roleTotal('p','p'); if(pr>0) scaleRole('p',clamp((t.protein-(cur2.p-pr))/pr,0.5,2.4));
+    cur2=macrosOf(meals.flatMap(m=>m.items));
+    const fr=roleTotal('f','f'); if(fr>0) scaleRole('f',clamp((t.fat-(cur2.f-fr))/fr,0.4,2.6));
+    cur2=macrosOf(meals.flatMap(m=>m.items));
+    const cr=roleTotal('c','k'); if(cr>0) scaleRole('c',clamp((t.kcal-(cur2.k-cr))/cr,0.4,2.6));
+  }
+  meals.forEach(m=>m.items.forEach(i=>i[1]=Math.max(5,Math.round(i[1]/5)*5)));
+  S.dietDay.totals=macrosOf(meals.flatMap(m=>m.items));
+  S.dietDay.targets=t; save(); renderNutrition();
+}
+
+/* ============================================================
+   PROFILE \u2014 settings, measurements, photos, crew
    ============================================================ */
 const DEF_MARKS={sh:{y:24,x0:31,x1:69},wa:{y:45,x0:40,x1:60},hi:{y:55,x0:37,x1:63},top:5,bot:96};
-let SEL=null; /* selected photo id for measuring */
+let SEL=null;
 
 function addPhoto(file,view){
   if(!file) return;
@@ -1581,7 +2141,7 @@ function addPhoto(file,view){
       const rec={id:'p'+Date.now(),d:today(),view,src,w:cv.width,h:cv.height,marks:structuredClone(DEF_MARKS),derived:null};
       S.photos.push(rec);
       if(S.photos.length>10) S.photos.shift();
-      SEL=rec.id; save(); renderBody();
+      SEL=rec.id; save(); renderProfile();
       toast('Photo added. Drag the markers onto your frame.');
     };
     img.onerror=()=>toast('That file could not be read as an image.');
@@ -1599,7 +2159,7 @@ function computeDerived(ph){
 }
 function saveMarks(){
   const ph=S.photos.find(p=>p.id===SEL); if(!ph) return;
-  ph.derived=computeDerived(ph); save(); renderBody();
+  ph.derived=computeDerived(ph); save(); renderProfile();
   toast(ph.derived?'Frame measured.':'Move the head and floor markers apart first.');
 }
 function bindStage(){
@@ -1641,9 +2201,11 @@ function drawMarks(ph){
     <text x="12" y="${m[k]+(k==='top'?-1.6:3.6)}" font-size="3.2" font-family="IBM Plex Mono,monospace" fill="#F2C14E" stroke="rgba(0,0,0,.45)" stroke-width="0.7" paint-order="stroke">${label}</text>`;
   svg.innerHTML=gline('top','crown')+gline('bot','floor')+bar('sh','shoulders','#5CE1E6')+bar('wa','waist','#FF7A6B')+bar('hi','hips','#9BE36D');
 }
-function renderBody(){
-  const el=$('#bodyBody'), p=S.profile;
-  if(!S.setup){ el.innerHTML='<div class="card pad stack"><h2>Set up your profile first</h2><p class="tiny muted">Height and sex are needed before a photo can be turned into numbers.</p><button class="btn" onclick="openProfile()">Set up profile</button></div>'; return; }
+
+function renderProfile(){
+  const el=$('#profileBody'), p=S.profile;
+  if(!S.setup){ el.innerHTML='<div class="card pad stack"><h2>Set up your profile first</h2><button class="btn" onclick="openProfile()">Set up profile</button></div>'; return; }
+
   const ph=S.photos.find(x=>x.id===SEL)||S.photos[S.photos.length-1];
   if(ph) SEL=ph.id;
   const m=latestMeasure(), bf=currentBF();
@@ -1655,12 +2217,52 @@ function renderBody(){
   const prio=derivedPriorities();
 
   el.innerHTML=`
-  <div style="margin-bottom:10px"><div class="eyebrow">Physique read-out</div><h1 style="margin-top:3px">Measure, don’t guess</h1></div>
+  <div style="margin-bottom:10px"><div class="eyebrow">Your Profile</div><h1 style="margin-top:3px">${p.name?esc(p.name):'Profile'}</h1></div>
 
-  <div class="card pad stack">
-    <div class="between"><h2>1 · Photo calipers</h2>
+  <div class="card pad stack" style="margin-bottom:14px">
+    <div class="between"><h2>Profile Settings</h2>
+      <button class="btn ghost sm" onclick="openProfile()">Edit</button></div>
+    <div class="grid2" style="gap:8px">
+      <div class="tiny"><span class="muted">Age:</span> ${p.age}</div>
+      <div class="tiny"><span class="muted">Sex:</span> ${p.sex}</div>
+      <div class="tiny"><span class="muted">Height:</span> ${p.heightCm} cm</div>
+      <div class="tiny"><span class="muted">Weight:</span> ${currentWeight()} kg</div>
+      <div class="tiny"><span class="muted">Goal:</span> ${goalLabel(p.goal)}</div>
+      <div class="tiny"><span class="muted">Experience:</span> ${p.experience}</div>
+      <div class="tiny"><span class="muted">Training days:</span> ${p.days}/week</div>
+      <div class="tiny"><span class="muted">Diet:</span> ${p.diet}</div>
+    </div>
+  </div>
+
+  ${bf!=null?`<div class="card pad stack" style="margin-bottom:14px">
+    <h2>Body Composition</h2>
+    <div class="grid3">
+      <div class="tile"><span class="k">Body fat</span><span class="v">${bf}<small> %</small></span><span class="s">${bfBand(p.sex,bf).label}</span></div>
+      <div class="tile"><span class="k">Lean mass</span><span class="v">${fm?fm.lbm:'\u2014'}<small> kg</small></span></div>
+      <div class="tile"><span class="k">FFMI</span><span class="v">${fm?fm.norm:'\u2014'}</span><span class="s">${fm?ffmiBand(p.sex,fm.norm).label:''}</span></div>
+    </div>
+    ${wht!=null?`<div class="between"><span class="tiny">Waist \xF7 height</span>
+      <span class="pill ${wht<0.5?'good':wht<0.55?'warn':'bad'}">${wht}${wht<0.5?' \xB7 healthy':' \xB7 above 0.5'}</span></div>`:''}
+    ${whr!=null?`<div class="between"><span class="tiny">Waist \xF7 hip</span>
+      <span class="pill ${whr<(p.sex==='female'?0.85:0.9)?'good':'warn'}">${whr}</span></div>`:''}
+  </div>`:''}
+
+  <div class="card pad stack" style="margin-bottom:14px">
+    <h2>Tape Measurements</h2>
+    <p class="tiny muted">Neck and waist (plus hip for women) give a body-fat estimate. Measure first thing in the morning.</p>
+    <div class="grid2">
+      ${['w:Weight (kg)','neck:Neck (cm)','waist:Waist (cm)','hip:Hip (cm)','chest:Chest (cm)','arm:Upper arm (cm)','thigh:Thigh (cm)'].map(f=>{
+        const [k,l]=f.split(':');
+        return `<label class="f"><span class="lb">${l}</span><input type="number" inputmode="decimal" step="0.1" id="m_${k}" value="${m&&m[k]!=null?m[k]:''}"></label>`;
+      }).join('')}
+    </div>
+    <button class="btn block" onclick="saveMeasure()">Save measurements</button>
+  </div>
+
+  <div class="card pad stack" style="margin-bottom:14px">
+    <div class="between"><h2>Photo Calipers</h2>
       ${S.photos.length?`<span class="pill neutral">${S.photos.length} photo${S.photos.length>1?'s':''}</span>`:''}</div>
-    <p class="tiny muted">Stand square to the camera, arms slightly away from the body, full body in frame. Then drag the markers onto your crown, the floor, and the widest points of your shoulders, waist and hips. The page reads the proportions off the pixels — nothing leaves your device.</p>
+    <p class="tiny muted">Stand square to the camera, full body in frame. Drag markers onto your frame to measure proportions.</p>
     ${ph?`
       <div class="stage" id="stage">
         <img src="${ph.src}" alt="Your ${esc(ph.view)} photo from ${fmtDate(ph.d)}">
@@ -1671,7 +2273,7 @@ function renderBody(){
         <button class="btn ghost sm" onclick="resetMarks()">Reset markers</button>
         <button class="btn ghost sm" onclick="delPhoto('${ph.id}')">Delete photo</button>
       </div>
-      ${S.photos.length>1?`<div class="chips">${S.photos.map(x=>`<button class="chip" aria-pressed="${x.id===ph.id}" onclick="SEL='${x.id}';renderBody()">${fmtDate(x.d)} · ${esc(x.view)}</button>`).join('')}</div>`:''}
+      ${S.photos.length>1?`<div class="chips">${S.photos.map(x=>`<button class="chip" aria-pressed="${x.id===ph.id}" onclick="SEL='${x.id}';renderProfile()">${fmtDate(x.d)} \xB7 ${esc(x.view)}</button>`).join('')}</div>`:''}
     `:`<div class="drop"><p class="tiny muted" style="margin-bottom:9px">No photo yet</p>
         <button class="btn sm" onclick="$('#file').click()">Choose a photo</button></div>`}
     <div class="row" style="gap:8px">
@@ -1681,69 +2283,34 @@ function renderBody(){
     </div>
   </div>
 
-  ${d?`<div class="card pad stack">
-    <h2>What the frame says</h2>
+  ${d?`<div class="card pad stack" style="margin-bottom:14px">
+    <h2>Frame Analysis</h2>
     <div class="grid3">
-      <div class="tile"><span class="k">Shoulder : waist</span><span class="v">${d.sw}</span>
-        <span class="s">${d.sw>=swTarget?'strong V-taper':d.sw>=swTarget-0.10?'close to target':'below '+swTarget+' target'}</span></div>
-      <div class="tile"><span class="k">Waist : hip</span><span class="v">${d.whip}</span><span class="s">frame width</span></div>
-      <div class="tile"><span class="k">Shoulder width</span><span class="v">${d.shCm}<small> cm</small></span><span class="s">scaled to ${p.heightCm} cm</span></div>
+      <div class="tile"><span class="k">Shoulder : waist</span><span class="v">${d.sw}</span></div>
+      <div class="tile"><span class="k">Waist : hip</span><span class="v">${d.whip}</span></div>
+      <div class="tile"><span class="k">Shoulder width</span><span class="v">${d.shCm}<small> cm</small></span></div>
     </div>
-    <div class="meter"><i class="${d.sw>=swTarget?'good':d.sw>=swTarget-0.10?'warn':'bad'}" style="width:${clamp(d.sw/swTarget*100,4,100)}%"></i></div>
-    <p class="xtiny muted">${d.sw>=swTarget?'Your shoulder-to-waist width is at or above the classic target for your sex. Hold it while you add size elsewhere.':'A wider shoulder-to-waist read comes from two places: more side delt and upper back, and less waist. The split below already leans that way.'}</p>
-    <div class="note">These are <b>widths</b> from a flat image, not circumferences. They are excellent for tracking change photo to photo, and no substitute for a tape.</div>
   </div>`:''}
 
-  <div class="card pad stack">
-    <h2>2 · Tape measurements</h2>
-    <p class="tiny muted">Neck and waist (plus hip for women) turn into a body-fat estimate with the US Navy method. Measure first thing in the morning, same spots each time.</p>
-    <div class="grid2">
-      ${['w:Weight (kg)','neck:Neck (cm)','waist:Waist (cm)','hip:Hip (cm)','chest:Chest (cm)','arm:Upper arm (cm)','thigh:Thigh (cm)'].map(f=>{
-        const [k,l]=f.split(':');
-        return `<label class="f"><span class="lb">${l}</span><input type="number" inputmode="decimal" step="0.1" id="m_${k}" value="${m&&m[k]!=null?m[k]:''}"></label>`;
-      }).join('')}
-    </div>
-    <button class="btn block" onclick="saveMeasure()">Save today’s numbers</button>
-  </div>
-
-  ${bf!=null?`<div class="card pad stack">
-    <h2>Composition</h2>
-    <div class="grid3">
-      <div class="tile"><span class="k">Body fat</span><span class="v">${bf}<small> %</small></span><span class="s">${bfBand(p.sex,bf).label}</span></div>
-      <div class="tile"><span class="k">Lean mass</span><span class="v">${fm?fm.lbm:'—'}<small> kg</small></span><span class="s">fat-free</span></div>
-      <div class="tile"><span class="k">FFMI</span><span class="v">${fm?fm.norm:'—'}</span><span class="s">${fm?ffmiBand(p.sex,fm.norm).label:''}</span></div>
-    </div>
-    ${wht!=null?`<div class="between"><span class="tiny">Waist ÷ height</span>
-      <span class="pill ${wht<0.5?'good':wht<0.55?'warn':'bad'}">${wht}${wht<0.5?' · healthy':' · above 0.5'}</span></div>`:''}
-    ${whr!=null?`<div class="between"><span class="tiny">Waist ÷ hip</span>
-      <span class="pill ${whr<(p.sex==='female'?0.85:0.9)?'good':'warn'}">${whr}</span></div>`:''}
-    <p class="xtiny muted">Circumference estimates carry a few points of error against DEXA. Their value is the trend — measure monthly and watch the direction.</p>
-  </div>`:''}
-
-  ${aiBodyHtml()}
-
-  <div class="card pad stack">
-    <h2>3 · What to prioritise</h2>
-    <p class="tiny muted">Picked up from your photo, plus anything you add. These muscles get an extra slot and an extra set in your split.</p>
+  <div class="card pad stack" style="margin-bottom:14px">
+    <h2>Priorities</h2>
+    <p class="tiny muted">Select muscles to prioritize in your workout plan.</p>
     <div class="chips">${Object.entries(MUSCLES).map(([k,v])=>`<button class="chip" aria-pressed="${prio.includes(k)}" onclick="togglePrio('${k}')">${v}</button>`).join('')}</div>
-    ${prio.length?`<button class="btn sm" onclick="regenPlan();show('plan')">Rebuild my split around these</button>`:''}
+    ${prio.length?`<button class="btn sm" onclick="regenPlan();show('workout')">Rebuild workout plan</button>`:''}
   </div>
 
-  ${S.photos.length>1?`<div class="card pad stack">
-    <h2>Progress</h2>
-    <div class="grid2">
-      ${[S.photos[0],S.photos[S.photos.length-1]].map((x,i)=>`<figure style="margin:0">
-        <img src="${x.src}" alt="${i?'Latest':'First'} photo" style="width:100%;border-radius:4px;border:1px solid var(--line)">
-        <figcaption class="xtiny muted" style="margin-top:5px">${i?'Latest':'First'} · ${fmtDate(x.d)}${x.derived?` · S:W ${x.derived.sw}`:''}</figcaption>
-      </figure>`).join('')}
-    </div>
-  </div>`:''}
+  ${renderCrewSection()}
+
+  <div class="card pad stack" style="margin-bottom:14px">
+    <button class="btn ghost block" onclick="wipe()">Erase all my data</button>
+  </div>
   <div style="height:8px"></div>`;
   bindStage();
 }
-function resetMarks(){ const ph=S.photos.find(p=>p.id===SEL); if(!ph)return; ph.marks=structuredClone(DEF_MARKS); save(); renderBody(); }
-function delPhoto(id){ if(!confirm('Delete this photo?'))return; S.photos=S.photos.filter(p=>p.id!==id); SEL=S.photos.length?S.photos[S.photos.length-1].id:null; save(); renderBody(); }
-function togglePrio(k){ const s=new Set(S.priorities); s.has(k)?s.delete(k):s.add(k); S.priorities=[...s]; save(); renderBody(); }
+
+function resetMarks(){ const ph=S.photos.find(p=>p.id===SEL); if(!ph)return; ph.marks=structuredClone(DEF_MARKS); save(); renderProfile(); }
+function delPhoto(id){ if(!confirm('Delete this photo?'))return; S.photos=S.photos.filter(p=>p.id!==id); SEL=S.photos.length?S.photos[S.photos.length-1].id:null; save(); renderProfile(); }
+function togglePrio(k){ const s=new Set(S.priorities); s.has(k)?s.delete(k):s.add(k); S.priorities=[...s]; save(); renderProfile(); }
 function saveMeasure(){
   const rec={d:today()};
   ['w','neck','waist','hip','chest','arm','thigh'].forEach(k=>{ const v=$('#m_'+k).value; if(v!=='') rec[k]=Number(v); });
@@ -1751,217 +2318,14 @@ function saveMeasure(){
   const i=S.measures.findIndex(x=>x.d===rec.d);
   if(i>=0) S.measures[i]=Object.assign(S.measures[i],rec); else S.measures.push(rec);
   if(rec.w) S.profile.weightKg=rec.w;
-  save(); renderBody(); toast('Saved.');
+  save(); renderProfile(); toast('Saved.');
 }
 
 /* ============================================================
-   PLAN
-   ============================================================ */
-function regenPlan(reshuffle){
-  if(reshuffle) S.profile.planSeed=(S.profile.planSeed||0)+1;
-  S.plan=buildPlan(S.profile,derivedPriorities());
-  save(); toast(reshuffle?'New exercise picks.':'Split built.');
-}
-function shapeName(plan){
-  const t=plan.shape.join(',');
-  if(t.includes('upper')) return 'Upper / Lower';
-  if(t.includes('push')) return plan.shape.includes('upperA')?'Push · Pull · Legs + Upper / Lower':'Push · Pull · Legs';
-  return 'Full body';
-}
-function renderPlan(){
-  const el=$('#planBody'), p=S.profile;
-  if(!S.setup){ el.innerHTML='<div class="card pad stack"><h2>Set up your profile first</h2><button class="btn" onclick="openProfile()">Set up profile</button></div>'; return; }
-  if(!S.plan){
-    el.innerHTML=`<div class="card pad stack"><h2>Build your split</h2>
-      <p class="tiny muted">${p.days} days a week · ${p.experience} · ${({full:'full gym',home:'dumbbells at home',minimal:'bodyweight and bands'})[p.equipment]}. Change any of that in your profile.</p>
-      <button class="btn" onclick="regenPlan();renderPlan()">Generate split</button></div>`;
-    return;
-  }
-  const plan=S.plan, vol=weeklyVolume(plan), [lo,hi]=volTarget(plan.exp);
-  const prio=derivedPriorities();
-  const rows=Object.entries(MUSCLES).filter(([k])=>vol[k]>0).sort((a,b)=>vol[b[0]]-vol[a[0]]);
-  const belowCount=rows.filter(([k])=>vol[k]<volTargetFor(k,plan.exp)[0]).length;
-  el.innerHTML=`
-  <div class="between" style="margin-bottom:10px">
-    <div><div class="eyebrow">${plan.days.length}-day rotation · ${plan.exp}</div><h1 style="margin-top:3px">${shapeName(plan)}</h1></div>
-  </div>
-  <div class="row" style="gap:7px;flex-wrap:wrap;margin-bottom:12px">
-    <button class="btn sm" onclick="regenPlan(true);renderPlan()">Swap exercises</button>
-    <button class="btn ghost sm" onclick="regenPlan();renderPlan()">Rebuild</button>
-    <button class="btn ghost sm" onclick="openProfile()">Change days / kit</button>
-  </div>
-
-  <div class="card pad">
-    <div class="sec-head"><div><div class="eyebrow">Weekly hard sets per muscle</div>
-      <h3 style="margin-top:3px">Target ${lo}–${hi} for ${plan.exp}s, ${Math.round(lo*0.75)}–${Math.round(hi*0.8)} on small muscles</h3></div></div>
-    <p class="xtiny muted" style="margin-bottom:8px">Sets on a muscle count 1; sets where it assists count ½ — the fractional method that predicted growth best in the 2025 dose–response meta-regression.</p>
-    ${rows.map(([k,label])=>{
-      const v=vol[k], [mlo,mhi]=volTargetFor(k,plan.exp);
-      const kind=v<mlo?'warn':v>mhi?'bad':'good';
-      const w=clamp(v/(mhi*1.25)*100,3,100);
-      return `<div class="vol-row"><span class="tiny${prio.includes(k)?'" style="font-weight:600':''}">${label}</span>
-        <span class="meter" title="target ${mlo}–${mhi}"><i class="${kind}" style="width:${w}%"></i></span>
-        <span class="mono tiny" style="text-align:right;color:var(--ink-2)">${v%1?v.toFixed(1):v} sets</span></div>`;
-    }).join('')}
-    ${belowCount>2?`<div class="note" style="margin-top:10px">${belowCount} muscles sit under range. There is only so much volume that fits into ${plan.daysPerWeek} sessions a week${plan.exp==='advanced'?' at an advanced target':''} — that is a trade-off, not a fault in the plan. Add a training day, or mark the muscles you actually care about as priorities under Body so they take the extra sets.</div>`:''}
-    <div class="row" style="gap:12px;margin-top:9px;flex-wrap:wrap">
-      <span class="xtiny muted"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--good)"></span> in range</span>
-      <span class="xtiny muted"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--warn)"></span> below range</span>
-      <span class="xtiny muted"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--bad)"></span> above range</span>
-    </div>
-  </div>
-
-  ${plan.days.map((d,i)=>`<div class="card pad">
-    <div class="between"><div><div class="eyebrow">Day ${i+1}</div><h2 style="margin-top:3px">${esc(d.name)}</h2></div>
-      <button class="btn ghost sm" onclick="startSession(${i});show('today')">Train this</button></div>
-    <div class="rule" style="margin:11px 0"></div>
-    ${d.blocks.map((b,j)=>{ const e=EXBY[b.ex];
-      return `<div class="ex"><div class="ex-h"><div class="ex-i">${j+1}</div><div style="min-width:0;flex:1">
-        <div class="ex-n">${esc(e.n)}</div>
-        <div class="ex-meta"><span>${b.sets} × ${b.rl}–${b.rh}</span><span>RIR ${b.rir}</span><span>${b.rest}s rest</span>
-          <a href="https://www.youtube.com/results?search_query=${encodeURIComponent('how to '+e.n+' proper form')}" target="_blank" rel="noopener">form ↗</a></div>
-      </div></div><div class="ex-cue">${esc(e.c)}</div></div>`;}).join('')}
-  </div>`).join('')}
-
-  ${aiPlanHtml()}
-  ${labsPanelHtml()}
-
-  <div class="card pad stack">
-    <h2>How to progress</h2>
-    <p class="tiny muted">Double progression, and nothing cleverer. Stay at a weight until every set hits the top of its rep range at the written RIR, then add the smallest jump available — usually 2.5 kg on lower-body lifts, 1–2.5 kg upstairs — and start again at the bottom of the range.</p>
-    <p class="tiny muted">Every fifth or sixth week, halve your sets for a week. You will come back stronger, not weaker.</p>
-    <div class="note">Warm up each first exercise with 2–3 ramping sets. Those are not counted in the weekly volume above and should not go anywhere near failure.</div>
-  </div>
-  <div style="height:8px"></div>`;
-}
-
-/* ============================================================
-   FUEL
-   ============================================================ */
-function setDiet(k,v){ S.profile[k]=v; S.dietDay=null; save(); renderFuel(); }
-function regenDiet(shuffle){
-  const t=nutritionTargets(S.profile,currentBF());
-  if(shuffle) S.dietSeed=(S.dietSeed||0)+1;
-  S.dietDay=buildDay(S.profile,t,S.dietSeed||0);
-  S.dietDay.targets=t; save();
-}
-function renderFuel(){
-  const el=$('#fuelBody'), p=S.profile;
-  if(!S.setup){ el.innerHTML='<div class="card pad stack"><h2>Set up your profile first</h2><button class="btn" onclick="openProfile()">Set up profile</button></div>'; return; }
-  const t=nutritionTargets(p,currentBF());
-  if(!S.dietDay) regenDiet(false);
-  const day=S.dietDay, tot=day.totals;
-  const pct=(a,b)=>clamp(a/b*100,0,140);
-  const dietOpts=[['nonveg','Non-veg'],['egg','Egg + veg'],['veg','Vegetarian'],['vegan','Vegan']];
-  const slotName={breakfast:'Breakfast',lunch:'Lunch',snack:'Snack',dinner:'Dinner'};
-
-  el.innerHTML=`
-  <div style="margin-bottom:10px"><div class="eyebrow">${goalLabel(p.goal)} · ${t.tdee} kcal maintenance</div>
-    <h1 style="margin-top:3px">${t.kcal} kcal a day</h1></div>
-
-  <div class="grid3" style="margin-bottom:12px">
-    <div class="tile"><span class="k">Protein</span><span class="v">${t.protein}<small> g</small></span><span class="s">${r1(t.protein/currentWeight())} g/kg</span></div>
-    <div class="tile"><span class="k">Carbs</span><span class="v">${t.carb}<small> g</small></span><span class="s">fuel for the sets</span></div>
-    <div class="tile"><span class="k">Fat</span><span class="v">${t.fat}<small> g</small></span><span class="s">hormones, satiety</span></div>
-  </div>
-
-  ${aiFuelHtml()}
-
-  <div class="card pad stack">
-    <h2>How you eat</h2>
-    <div class="chips">${dietOpts.map(([k,l])=>`<button class="chip" aria-pressed="${p.diet===k}" onclick="setDiet('diet','${k}')">${l}</button>`).join('')}</div>
-    <div class="chips">
-      <button class="chip" aria-pressed="${p.cuisine==='indian'}" onclick="setDiet('cuisine','indian')">Indian only</button>
-      <button class="chip" aria-pressed="${p.cuisine==='any'}" onclick="setDiet('cuisine','any')">Anything</button>
-      <button class="chip" aria-pressed="${!!p.budget}" onclick="setDiet('budget',${!p.budget})">Budget-friendly</button>
-    </div>
-  </div>
-
-  <div class="card pad">
-    <div class="between" style="margin-bottom:4px">
-      <div><div class="eyebrow">Today’s plate</div><h2 style="margin-top:3px">${day.meals.length} meals</h2></div>
-      <button class="btn ghost sm" onclick="regenDiet(true);renderFuel()">Shuffle</button>
-    </div>
-    <div class="rule" style="margin:10px 0"></div>
-    ${day.meals.map((ml,mi)=>{ const mac=macrosOf(ml.items);
-      return `<div class="meal">
-        <div class="between"><div><div class="eyebrow">${slotName[ml.tpl.s]}</div>
-          <h3 style="margin-top:3px">${esc(ml.tpl.n)}</h3></div>
-          <button class="btn ghost sm" onclick="swapMeal(${mi})">Swap</button></div>
-        <div style="margin-top:7px">${ml.items.map(([id,g])=>`<div class="food"><b>${esc(F[id].n)}</b><span class="mono">${g} g</span></div>`).join('')}</div>
-        <div class="mono xtiny" style="margin-top:6px;color:var(--ink-3)">${Math.round(mac.k)} kcal · P ${Math.round(mac.p)} · C ${Math.round(mac.c)} · F ${Math.round(mac.f)} · ≈₹${Math.round(mac.cost)}</div>
-      </div>`;}).join('')}
-    <div class="rule major" style="margin:12px 0"></div>
-    <div class="stack" style="gap:8px">
-      ${[['Calories',Math.round(tot.k),t.kcal,'kcal'],['Protein',Math.round(tot.p),t.protein,'g'],['Carbs',Math.round(tot.c),t.carb,'g'],['Fat',Math.round(tot.f),t.fat,'g']].map(([l,v,g,u])=>`
-        <div class="vol-row" style="grid-template-columns:64px 1fr 92px;border:0;padding:2px 0">
-          <span class="tiny">${l}</span>
-          <span class="meter"><i class="${Math.abs(v-g)/g<0.08?'good':Math.abs(v-g)/g<0.18?'warn':'bad'}" style="width:${pct(v,g)}%"></i></span>
-          <span class="mono tiny" style="text-align:right;color:var(--ink-2)">${v} / ${g} ${u}</span>
-        </div>`).join('')}
-    </div>
-    <p class="xtiny muted" style="margin-top:9px">Rough cost of the day: <b>≈₹${Math.round(tot.cost)}</b>${p.budget?' — budget mode is on, so only cheap staples are used.':'.'} Portions are rounded to 5 g, so totals land within a few percent of target.</p>
-  </div>
-
-  <div class="card pad stack">
-    <h2>Shopping list</h2>
-    <div class="scroll-x"><table class="data"><thead><tr><th>Item</th><th>Amount</th><th>Protein</th><th>≈ Cost</th></tr></thead><tbody>
-    ${(()=>{ const agg={};
-      day.meals.forEach(m=>m.items.forEach(([id,g])=>agg[id]=(agg[id]||0)+g));
-      return Object.entries(agg).sort((a,b)=>F[b[0]].p*b[1]-F[a[0]].p*a[1]).map(([id,g])=>
-        `<tr><td>${esc(F[id].n)}</td><td class="mono">${g} g</td><td class="mono">${r1(F[id].p*g/100)} g</td><td class="mono">₹${Math.round(F[id].r*g/100)}</td></tr>`).join('');
-    })()}
-    </tbody></table></div>
-    <p class="xtiny muted">Dry weights for dals, soya and grains; cooked weights for rice and roti. Prices are rough Indian retail per the amounts shown.</p>
-  </div>
-
-  <div class="card pad stack">
-    <h2>Protein per 100 g</h2>
-    <p class="tiny muted">The cheapest way to hit your ${t.protein} g. Sorted by protein density, filtered to how you eat.</p>
-    <div class="scroll-x"><table class="data"><thead><tr><th>Food</th><th>Protein</th><th>kcal</th><th>₹/100 g</th></tr></thead><tbody>
-    ${Object.entries(F).filter(([,o])=>DIET_RANK[o.d]<=DIET_RANK[p.diet]&&o.p>=7&&(p.cuisine!=='indian'||o.in||o.p>20))
-      .sort((a,b)=>b[1].p-a[1].p).slice(0,14)
-      .map(([,o])=>`<tr><td>${esc(o.n)}</td><td class="mono"><b>${o.p} g</b></td><td class="mono">${o.k}</td><td class="mono">₹${o.r}</td></tr>`).join('')}
-    </tbody></table></div>
-  </div>
-  <div style="height:8px"></div>`;
-}
-function swapMeal(mi){
-  const p=S.profile, cur=S.dietDay.meals[mi].tpl;
-  const pool=eligibleMeals(p).filter(m=>m.s===cur.s);
-  if(pool.length<2){ toast('No other meal fits these filters yet.'); return; }
-  const i=pool.findIndex(m=>m.n===cur.n);
-  const next=pool[(i+1+pool.length)%pool.length];
-  const t=S.dietDay.targets||nutritionTargets(p,currentBF());
-  const names=S.dietDay.meals.map(m=>m.tpl.n); names[mi]=next.n;
-  S.dietDay=buildDay(p,t,S.dietSeed||0);
-  /* re-solve with the swapped template in place */
-  S.dietDay.meals[mi]={tpl:next,items:next.i.map(x=>[x[0],x[1],x[2]])};
-  const t2=t; const meals=S.dietDay.meals;
-  const roleTotal=(role,key)=>meals.reduce((a,ml)=>a+ml.items.filter(i=>i[2]===role).reduce((b,i)=>b+(F[i[0]]?.[key]||0)*i[1]/100,0),0);
-  const scaleRole=(role,f)=>meals.forEach(ml=>ml.items.forEach(i=>{ if(i[2]===role) i[1]=clamp(i[1]*f,i[1]*0.45,i[1]*2.6); }));
-  for(let pass=0;pass<3;pass++){
-    let cur2=macrosOf(meals.flatMap(m=>m.items));
-    const pr=roleTotal('p','p'); if(pr>0) scaleRole('p',clamp((t2.protein-(cur2.p-pr))/pr,0.5,2.4));
-    cur2=macrosOf(meals.flatMap(m=>m.items));
-    const fr=roleTotal('f','f'); if(fr>0) scaleRole('f',clamp((t2.fat-(cur2.f-fr))/fr,0.4,2.6));
-    cur2=macrosOf(meals.flatMap(m=>m.items));
-    const cr=roleTotal('c','k'); if(cr>0) scaleRole('c',clamp((t2.kcal-(cur2.k-cr))/cr,0.4,2.6));
-  }
-  meals.forEach(m=>m.items.forEach(i=>i[1]=Math.max(5,Math.round(i[1]/5)*5)));
-  S.dietDay.totals=macrosOf(meals.flatMap(m=>m.items));
-  S.dietDay.targets=t2; save(); renderFuel();
-}
-
-/* ============================================================
-   CREW — shared board, persisted as a data file on this page
+   CREW \u2014 shared board (rendered inside Profile)
    ============================================================ */
 const CREW={posts:[],ready:false,loaded:false,cap:null,mode:'loading',storage:true,needsCode:false};
 
-/* The board runs in whichever mode the host supports:
-   api      — deployed build, posts live in the serverless store
-   artifact — Claude-hosted build, posts live in a data file on the page
-   readonly — neither is available, so the board can be read but not written */
 async function crewJSON(url,opts){
   const r=await fetch(url,opts||{cache:'no-store'});
   const ct=r.headers.get('content-type')||'';
@@ -1969,8 +2333,6 @@ async function crewJSON(url,opts){
   return {status:r.status,ok:r.ok,body:await r.json()};
 }
 async function crewInit(){
-  /* Ask only the host we are actually on: the Claude runtime answers on the
-     artifact build, the serverless route answers on the deployed build. */
   let cap=null;
   try{
     cap=await Promise.race([
@@ -1996,9 +2358,9 @@ async function crewInit(){
     if(CREW.mode!=='api') CREW.mode='readonly';
   }
   CREW.loaded=true; CREW.ready=true;
-  if(VIEW==='crew') renderCrew();
+  if(VIEW==='profile') renderProfile();
 }
-function crewBusy(on,label){ const b=$('#crewSend'); if(b){ b.disabled=on; b.textContent=on?(label||'Posting…'):'Post check-in'; } }
+function crewBusy(on,label){ const b=$('#crewSend'); if(b){ b.disabled=on; b.textContent=on?(label||'Posting\u2026'):'Post check-in'; } }
 async function crewPost(kind){
   const text=($('#crewText')?.value||'').trim();
   const who=($('#crewWho')?.value||'').trim()||S.profile.name||'Anonymous';
@@ -2024,14 +2386,14 @@ async function crewPost(kind){
       }else if(r.status===401){
         S.crewCode=''; save(); toast('Wrong passcode. Try posting again.');
       }else if(r.status===429){
-        toast('Easy — one post a minute.');
+        toast('Easy \u2014 one post a minute.');
       }else if(r.status===503){
         CREW.storage=false; toast('The board store is not connected yet.');
       }else{
         toast(r.body&&r.body.error?r.body.error:'Could not post right now.');
       }
     }catch(e){ toast('Could not reach the board. Check your connection.'); }
-    crewBusy(false); renderCrew(); return;
+    crewBusy(false); renderProfile(); return;
   }
 
   if(CREW.mode==='artifact'){
@@ -2044,59 +2406,54 @@ async function crewPost(kind){
       toast('Posted to the board.');
     }catch(err){
       const c=err&&err.code;
-      if(c==='conflict') toast('Someone posted at the same time — reload and try again.');
+      if(c==='conflict') toast('Someone posted at the same time \u2014 reload and try again.');
       else if(c==='not_writer'||c==='not_granted'||c==='capability_disabled'){ CREW.mode='readonly'; toast('This view is read-only.'); }
-      else if(c==='rate_limited') toast('Posting too fast — wait a moment.');
+      else if(c==='rate_limited') toast('Posting too fast \u2014 wait a moment.');
       else toast('Could not post right now.');
     }
-    crewBusy(false); renderCrew(); return;
+    crewBusy(false); renderProfile(); return;
   }
-
   toast('This copy of the page is read-only.');
 }
 function lastSessionSummary(){
   const l=S.logs[S.logs.length-1]; if(!l) return '';
   const best=l.entries.map(e=>{ const s=e.sets.reduce((a,b)=>Number(b.w)>Number(a.w)?b:a,e.sets[0]);
-    return `${EXBY[e.ex]?.n||e.ex} ${s.w}×${s.r}`; }).slice(0,3).join(', ');
-  return `${l.name} done — ${best}.`;
+    return `${EXBY[e.ex]?.n||e.ex} ${s.w}\xD7${s.r}`; }).slice(0,3).join(', ');
+  return `${l.name} done \u2014 ${best}.`;
 }
 function crewNotice(){
   if(!CREW.ready) return '';
   if(CREW.mode==='api'&&!CREW.storage)
-    return '<div class="note">The board is live but its store is not connected yet. Add the Upstash Redis integration to this project on Vercel and redeploy — posts will start saving with no other change.</div>';
+    return '<div class="note">The board is live but its store is not connected yet. Add the Upstash Redis integration to this project on Vercel and redeploy.</div>';
   if(CREW.mode==='readonly')
     return navigator.onLine
-      ? '<div class="note">This copy of the page is read-only. Posting works on the deployed site and on the shared link from Claude.</div>'
-      : '<div class="note">You are offline. Everything else keeps working — the board loads and accepts posts again once you reconnect.</div>';
+      ? '<div class="note">This copy of the page is read-only. Posting works on the deployed site.</div>'
+      : '<div class="note">You are offline. The board loads again once you reconnect.</div>';
   if(CREW.mode==='api')
-    return '<div class="note">This board is public: anyone who has the link can read it and post to it. Nothing else in the app is shared.</div>';
+    return '<div class="note">This board is public: anyone who has the link can read and post.</div>';
   return '';
 }
-function renderCrew(){
-  const el=$('#crewBody');
-  const kindPill={checkin:['Check-in','neutral'],pr:['PR','good'],note:['Tip','neutral']};
-  el.innerHTML=`
-  <div style="margin-bottom:10px"><div class="eyebrow">Shared board</div><h1 style="margin-top:3px">The crew</h1>
-    <p class="tiny muted" style="margin-top:6px">Anyone you send this page to sees the same board and can post to it. Your logs, photos and measurements stay on your device — only what you write here is shared.</p></div>
 
-  <div class="card pad stack">
+function renderCrewSection(){
+  const kindPill={checkin:['Check-in','neutral'],pr:['PR','good'],note:['Tip','neutral']};
+  return `
+  <div class="card pad stack" style="margin-bottom:14px">
+    <div class="between"><h2>Community Board</h2><span class="pill neutral">${CREW.posts.length} posts</span></div>
+
     <div class="grid2">
       <label class="f"><span class="lb">Post as</span><input type="text" id="crewWho" maxlength="32" value="${esc(S.handle||S.profile.name||'')}" placeholder="Your name"></label>
       <label class="f"><span class="lb">Quick fill</span><button class="btn ghost sm" onclick="$('#crewText').value=lastSessionSummary()||'Session done.'">Use last session</button></label>
     </div>
     <label class="f"><span class="lb">What happened</span>
-      <textarea id="crewText" rows="3" maxlength="600" placeholder="Hit 60 kg bench for 8 today. Third week of the push day."></textarea></label>
+      <textarea id="crewText" rows="2" maxlength="600" placeholder="Share your progress\u2026"></textarea></label>
     <div class="row" style="gap:7px;flex-wrap:wrap">
       <button class="btn sm" id="crewSend" onclick="crewPost('checkin')">Post check-in</button>
       <button class="btn ghost sm" onclick="crewPost('pr')">Post a PR</button>
       <button class="btn ghost sm" onclick="crewPost('note')">Post a tip</button>
     </div>
     ${crewNotice()}
-  </div>
 
-  <div class="card pad">
-    <div class="sec-head"><div><div class="eyebrow">Board</div><h2 style="margin-top:3px">${CREW.posts.length} post${CREW.posts.length===1?'':'s'}</h2></div></div>
-    ${CREW.posts.length?CREW.posts.map(p=>`<div class="post">
+    ${CREW.posts.length?CREW.posts.slice(0,10).map(p=>`<div class="post">
       <div class="row" style="align-items:flex-start">
         <div class="av">${esc((p.who||'?').trim()[0]||'?').toUpperCase()}</div>
         <div style="flex:1;min-width:0">
@@ -2106,21 +2463,42 @@ function renderCrew(){
           <div class="xtiny muted" style="margin-top:4px">${ago(p.ts)}</div>
         </div>
       </div></div>`).join('')
-    :`<div class="empty"><p class="tiny">${CREW.loaded?'Nothing on the board yet. Post the first one.':'Loading the board…'}</p></div>`}
-  </div>
-
-  <div class="card pad stack">
-    <div><div class="eyebrow">Research desk</div><h2 style="margin-top:3px">What the evidence actually says</h2></div>
-    <p class="tiny muted">Gathered from the literature and refreshed whenever this page is rebuilt. Every claim links to its source.</p>
-    ${BOARD.map(b=>`<div style="border-top:1px solid var(--line-soft);padding-top:11px">
-      <h3>${esc(b.t)}</h3><p class="tiny muted" style="margin-top:5px">${esc(b.b)}</p>
-      <p class="xtiny" style="margin-top:6px"><a href="${b.u}" target="_blank" rel="noopener">${esc(b.s)} ↗</a></p></div>`).join('')}
-  </div>
-  <div style="height:8px"></div>`;
+    :`<div class="empty"><p class="tiny">${CREW.loaded?'Nothing on the board yet.':'Loading\u2026'}</p></div>`}
+  </div>`;
 }
 
 /* ============================================================
-   Profile
+   Floating AI Chat
+   ============================================================ */
+function toggleFloatingChat(){
+  const panel=$('#fabChatPanel');
+  const isHidden=panel.hasAttribute('hidden');
+  if(isHidden){ panel.removeAttribute('hidden'); renderFabChat(); }
+  else panel.setAttribute('hidden','');
+}
+function renderFabChat(){
+  const thread=$('#fabChatThread');
+  const msgs=AI.convos.fab||[];
+  const loading=AI.loading==='fab';
+  thread.innerHTML=msgs.length?msgs.map(m=>{
+    if(m.role==='user') return `<div class="chat-bubble user">${esc(m.text)}</div>`;
+    return `<div class="chat-bubble ai">${esc(m.text)}</div>`;
+  }).join('')+(loading?`<div class="chat-bubble ai"><span class="ai-spin"></span></div>`:'')
+    :`<div class="chat-bubble ai">Hi! I can help you update your health data, adjust your workout plan, change your meal preferences, or answer questions about your health markers. What would you like to change?</div>`;
+  thread.scrollTop=thread.scrollHeight;
+}
+async function sendFabChat(){
+  const input=$('#fabChatInput');
+  if(!input) return;
+  const text=input.value.trim();
+  if(!text) return;
+  input.value='';
+  await aiChat('fab',text,true);
+  renderFabChat();
+}
+
+/* ============================================================
+   Profile Dialog
    ============================================================ */
 function openProfile(){
   const p=S.profile;
@@ -2137,7 +2515,7 @@ function openProfile(){
       <label class="f"><span class="lb">Weight (kg)</span><input type="number" step="0.1" id="f_weightKg" value="${p.weightKg}"></label>
       <label class="f"><span class="lb">Days per week</span><select id="f_days">${[2,3,4,5,6].map(d=>`<option value="${d}"${p.days===d?' selected':''}>${d} days</option>`).join('')}</select></label>
       <label class="f"><span class="lb">Experience</span><select id="f_experience">
-        ${[['beginner','Under a year'],['intermediate','1–3 years'],['advanced','3 years plus']].map(([k,l])=>`<option value="${k}"${p.experience===k?' selected':''}>${l}</option>`).join('')}</select></label>
+        ${[['beginner','Under a year'],['intermediate','1\u20133 years'],['advanced','3 years plus']].map(([k,l])=>`<option value="${k}"${p.experience===k?' selected':''}>${l}</option>`).join('')}</select></label>
       <label class="f"><span class="lb">Equipment</span><select id="f_equipment">
         ${[['full','Full gym'],['home','Dumbbells at home'],['minimal','Bodyweight + bands']].map(([k,l])=>`<option value="${k}"${p.equipment===k?' selected':''}>${l}</option>`).join('')}</select></label>
       <label class="f"><span class="lb">Goal</span><select id="f_goal">
@@ -2163,11 +2541,11 @@ function saveProfile(){
   p.days=Number($('#f_days').value); p.budget=$('#f_budget').checked;
   const first=!S.setup; S.setup=true;
   regenPlan(); S.dietDay=null;
-  save(); $('#dlg').close(); show(first?'today':VIEW);
-  if(first) toast('Plan built. Head to Plan to see your split.');
+  save(); $('#dlg').close(); show(first?'dashboard':VIEW);
+  if(first) toast('Profile saved. Your personalized plans are ready.');
 }
 function wipe(){ if(!confirm('Erase your profile, logs, photos and measurements from this browser?'))return;
-  localStorage.removeItem(KEY); S=structuredClone(DEF); SEL=null; $('#dlg').close(); show('today'); }
+  localStorage.removeItem(KEY); S=structuredClone(DEF); SEL=null; $('#dlg').close(); show('dashboard'); }
 $('#dlgX').addEventListener('click',()=>$('#dlg').close());
 $('#btnProfile').addEventListener('click',openProfile);
 $('#btnTheme').addEventListener('click',()=>{
@@ -2185,6 +2563,7 @@ if(S.theme) document.documentElement.setAttribute('data-theme',S.theme);
 if(S.setup&&!S.plan) regenPlan();
 render();
 crewInit();
+
 </script>
 
 <script>
