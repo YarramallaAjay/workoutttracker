@@ -25,8 +25,9 @@ const MODELS = ALL_MODELS.filter(m => m.key);
 
 /* ---- JSON extraction ---- */
 function strip(raw) {
-  // Remove Qwen/DeepSeek <think>...</think> reasoning blocks
-  let s = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  // Remove Qwen/DeepSeek <think> blocks (including truncated ones without closing tag)
+  let s = raw.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  s = s.replace(/<think>[\s\S]*/gi, ''); // truncated block — strip everything from <think> onward
   // Remove markdown code fences
   s = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
   let result = null;
@@ -82,6 +83,10 @@ function geminiContentsToOpenAI(contents) {
 
 async function callOpenAIModel(model, contents, { temperature = 0.7, maxOutputTokens = 2048 } = {}) {
   const messages = geminiContentsToOpenAI(contents);
+  // Prepend instruction to avoid verbose chain-of-thought (Qwen <think> blocks)
+  if (messages.length && messages[0].role === 'system') {
+    messages[0].content = 'IMPORTANT: Respond with JSON only. Do NOT use <think> tags or chain-of-thought reasoning.\n\n' + messages[0].content;
+  }
   return fetch(model.url, {
     method: 'POST',
     headers: {
@@ -92,7 +97,7 @@ async function callOpenAIModel(model, contents, { temperature = 0.7, maxOutputTo
       model: model.model,
       messages,
       temperature,
-      max_tokens: maxOutputTokens,
+      max_tokens: Math.max(maxOutputTokens, 4096), // extra room in case model still thinks
     }),
   });
 }
@@ -365,7 +370,8 @@ export default async function handler(req, res) {
 
       let result = strip(out.raw);
       if (!result) {
-        result = { phase: 'intake', message: out.raw.slice(0, 600), guidance: null };
+        const cleaned = out.raw.replace(/<think>[\s\S]*?(<\/think>|$)/gi, '').trim();
+        result = { phase: 'intake', message: (cleaned || out.raw).slice(0, 600), guidance: null };
       }
       if (!result.phase) result.phase = 'intake';
       if (!result.message) result.message = '';
