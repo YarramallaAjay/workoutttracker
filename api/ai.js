@@ -19,7 +19,7 @@ const GROQ_KEY = process.env.GROQ_API_KEY || '';
 /* ---- model registry (order = priority) ---- */
 const ALL_MODELS = [
   { id: 'gemini-flash', provider: 'gemini', model: 'gemini-3.6-flash', key: GEMINI_KEY, vision: true },
-  { id: 'groq-llama', provider: 'openai', model: 'llama-3.3-70b-versatile', url: 'https://api.groq.com/openai/v1/chat/completions', key: GROQ_KEY, vision: false },
+  { id: 'groq-qwen', provider: 'openai', model: 'qwen/qwen3.6-27b', url: 'https://api.groq.com/openai/v1/chat/completions', key: GROQ_KEY, vision: false },
 ];
 const MODELS = ALL_MODELS.filter(m => m.key);
 
