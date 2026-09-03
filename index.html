@@ -1143,37 +1143,103 @@ async function pdfPageToImage(pdfDoc, pageNum){
   return c.toDataURL('image/jpeg',0.82).split(',')[1];
 }
 
-/* ---- Process PDF: try text first, fall back to rendering page 1 as image ---- */
-function extractStructuredText(tc){
-  // Group text items by y-position (row detection) using transform[5]
-  const items=tc.items.filter(it=>it.str.trim());
-  if(!items.length) return '';
-  // Round y to nearest 2px to group items on the same line
-  const rows=new Map();
-  for(const it of items){
-    const y=Math.round((it.transform?it.transform[5]:0)/2)*2;
-    const x=it.transform?it.transform[4]:0;
-    if(!rows.has(y)) rows.set(y,[]);
-    rows.get(y).push({x,str:it.str});
+/* ---- Process PDF: intelligent lab data extraction ---- */
+
+// Noise patterns — lines that are hospital info, patient details, headers, footers
+const PDF_NOISE_RE=/^(page\s*\d|printed|collected|reported|received|registered|specimen|sample\s*(id|no)|barcode|patient\s*(name|id|age|sex|gender|ref)|mr\s*no|uhid|lab\s*(no|id|name|address)|hospital|diagnostic|center|centre|clinic|address|phone|tel|fax|email|www\.|http|dr\.\s|ref\s*(by|doctor)|end\s*of\s*report|---|\*\*\*|method|note:|interpretation|disclaimer|signature|authorised|verified|result\s*status|department)/i;
+const PDF_SECTION_RE=/^(haematology|biochemistry|immunology|serology|hormones|thyroid|lipid|liver|kidney|renal|urine|blood|complete\s*blood|cbc|metabolic|electrolyte|vitamin|diabetes|coagulation|iron\s*study)/i;
+
+// Detect if a line looks like a test result row (has a number that could be a value)
+function isTestRow(line){
+  // Must contain at least one number (the test value)
+  if(!/\d+\.?\d*/.test(line)) return false;
+  // Filter out lines that are purely dates, page numbers, phone numbers
+  if(/^\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s*$/.test(line)) return false;
+  if(/^\s*(page|pg)\s*\d/i.test(line)) return false;
+  if(PDF_NOISE_RE.test(line.trim())) return false;
+  // A test row typically has a name followed by a number
+  return /[a-zA-Z]{2,}.*\d/.test(line);
+}
+
+// Parse a single test row into structured fields
+function parseTestRow(cells){
+  // cells is array of strings from a row, try to identify: name, value, unit, refRange, flag/remark
+  let name='',value='',unit='',refRange='',remark='';
+
+  // Common unit patterns
+  const unitRe=/^(%|g\/d[Ll]|mg\/d[Ll]|mmol\/[Ll]|µ?mol\/[Ll]|mEq\/[Ll]|IU\/[Ll]|U\/[Ll]|ng\/m[Ll]|ng\/d[Ll]|pg\/m[Ll]|µg\/d[Ll]|µg\/[Ll]|mIU\/m[Ll]|mIU\/[Ll]|mm3|\/mm3|thou\/mm3|mill\/mm3|cells\/cumm|x10[³⁹\^]\/[µu]?[Ll]|fl|pg|sec|seconds|mm\/hr|mg\/24hr|mL\/min|ratio|index|copies\/m[Ll])$/i;
+  const rangeRe=/^\d+\.?\d*\s*[-–—to]\s*\d+\.?\d*$|^<\s*\d|^>\s*\d|^upto\s/i;
+  const numRe=/^[\d]+\.?\d*$/;
+  const flagRe=/^(normal|high|low|abnormal|positive|negative|reactive|non[- ]reactive|borderline|critical)\s*$/i;
+
+  const parts=[];
+  for(const c of cells){
+    const t=c.trim();
+    if(!t) continue;
+    parts.push(t);
   }
-  // Sort rows by y descending (PDF y-axis is bottom-up), items by x ascending
-  const sortedYs=[...rows.keys()].sort((a,b)=>b-a);
-  const lines=[];
-  for(const y of sortedYs){
-    const row=rows.get(y).sort((a,b)=>a.x-b.x);
-    // Insert tab separators when x-gap > 15px to preserve columns
-    let line='';
-    let prevX=-Infinity;
-    for(const item of row){
-      const gap=item.x-prevX;
-      if(line&&gap>15) line+='\t';
-      else if(line&&gap>3) line+=' ';
-      line+=item.str;
-      prevX=item.x+(item.str.length*5); // approximate end position
+  if(!parts.length) return null;
+
+  // Strategy: first non-numeric part is likely the name,
+  // first standalone number is the value, then unit, then range
+  let foundValue=false;
+  for(const p of parts){
+    if(!name&&!numRe.test(p)&&!unitRe.test(p)&&!rangeRe.test(p)&&!flagRe.test(p)){
+      name=name?(name+' '+p):p;
+    } else if(!foundValue&&numRe.test(p)){
+      value=p; foundValue=true;
+    } else if(foundValue&&!unit&&unitRe.test(p)){
+      unit=p;
+    } else if(foundValue&&!refRange&&rangeRe.test(p)){
+      refRange=p;
+    } else if(foundValue&&!refRange&&/^\d+\.?\d*\s*[-–—]\s*\d+\.?\d*/.test(p)){
+      refRange=p;
+    } else if(flagRe.test(p)){
+      remark=p;
+    } else if(name&&!foundValue&&!numRe.test(p)){
+      // Still part of the name (multi-word test names)
+      name+=' '+p;
     }
-    lines.push(line);
   }
-  return lines.join('\n');
+
+  if(!name||!value) return null;
+  name=name.replace(/\s+/g,' ').trim();
+  // Skip if name is too short or looks like noise
+  if(name.length<2||PDF_NOISE_RE.test(name)) return null;
+
+  return {name,value,unit:unit||null,refRange:refRange||null,remark:remark||null};
+}
+
+// Extract rows from PDF page using position data
+function extractPageRows(tc){
+  const items=tc.items.filter(it=>it.str.trim());
+  if(!items.length) return [];
+  // Group by y-position (rounded to 3px tolerance)
+  const rowMap=new Map();
+  for(const it of items){
+    const y=Math.round((it.transform?it.transform[5]:0)/3)*3;
+    const x=it.transform?it.transform[4]:0;
+    if(!rowMap.has(y)) rowMap.set(y,[]);
+    rowMap.get(y).push({x,str:it.str});
+  }
+  // Sort rows top-to-bottom (y descending in PDF coords), cells left-to-right
+  const sortedYs=[...rowMap.keys()].sort((a,b)=>b-a);
+  const rows=[];
+  for(const y of sortedYs){
+    const cells=rowMap.get(y).sort((a,b)=>a.x-b.x);
+    // Merge cells that are close together, split on large gaps
+    const merged=[];
+    let cur='',prevEnd=-Infinity;
+    for(const cell of cells){
+      const gap=cell.x-prevEnd;
+      if(gap>12&&cur){ merged.push(cur); cur=cell.str; }
+      else { cur=cur?(cur+(gap>3?' ':'')+cell.str):cell.str; }
+      prevEnd=cell.x+(cell.str.length*5.5);
+    }
+    if(cur) merged.push(cur);
+    rows.push(merged);
+  }
+  return rows;
 }
 
 async function processPdf(file){
@@ -1181,20 +1247,87 @@ async function processPdf(file){
   const ab=await file.arrayBuffer();
   const pdf=await window.pdfjsLib.getDocument({data:ab}).promise;
 
-  // Attempt structured text extraction (preserves table layout)
-  let text='';
   const pagesToScan=Math.min(pdf.numPages,15);
+  const allRows=[];
+  let reportDate=null;
+
   for(let i=1;i<=pagesToScan;i++){
     const pg=await pdf.getPage(i);
     const tc=await pg.getTextContent();
-    text+=extractStructuredText(tc)+'\n\n';
+    const rows=extractPageRows(tc);
+    for(const row of rows){
+      const line=row.join(' ');
+      // Try to grab report date
+      if(!reportDate){
+        const dm=line.match(/(?:collected|reported|date)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i)
+          ||line.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/);
+        if(dm) reportDate=dm[1];
+      }
+      allRows.push(row);
+    }
   }
-  text=text.trim();
 
-  // If we got meaningful text (>120 chars of non-whitespace), use text mode
-  const meaningful=text.replace(/\s+/g,'').length;
-  if(meaningful>120){
-    return {type:'labs-text',text:text.slice(0,15000)};
+  // Parse test rows and deduplicate
+  const tests=[];
+  const seen=new Set();
+  let currentSection='';
+
+  for(const row of allRows){
+    const line=row.join(' ').trim();
+    if(!line) continue;
+    // Detect section headers
+    if(PDF_SECTION_RE.test(line)&&!/\d+\.?\d*\s*(mg|g|IU|U|ng|ml|%)/i.test(line)){
+      currentSection=line.replace(/[:\-–—]+$/,'').trim();
+      continue;
+    }
+    if(!isTestRow(line)) continue;
+
+    const parsed=parseTestRow(row);
+    if(!parsed) continue;
+
+    // Deduplicate by normalized name
+    const key=parsed.name.toLowerCase().replace(/[^a-z0-9]/g,'');
+    if(seen.has(key)) continue;
+    seen.add(key);
+
+    if(currentSection) parsed.section=currentSection;
+    tests.push(parsed);
+  }
+
+  // If we extracted structured tests, send them as pre-parsed data
+  if(tests.length>=3){
+    const payload={
+      type:'labs-text',
+      text:tests.map(t=>{
+        let line=`TEST: ${t.name}`;
+        line+=` | VALUE: ${t.value}`;
+        if(t.unit) line+=` ${t.unit}`;
+        if(t.refRange) line+=` | REF: ${t.refRange}`;
+        if(t.remark) line+=` | STATUS: ${t.remark}`;
+        if(t.section) line+=` | SECTION: ${t.section}`;
+        return line;
+      }).join('\n'),
+      preExtracted:true,
+      testCount:tests.length,
+      reportDate:reportDate||null
+    };
+    return payload;
+  }
+
+  // Fallback: if structured parsing got too few results, try raw text
+  let rawText='';
+  for(let i=1;i<=pagesToScan;i++){
+    const pg=await pdf.getPage(i);
+    const tc=await pg.getTextContent();
+    const rows=extractPageRows(tc);
+    for(const row of rows){
+      const line=row.join('\t');
+      if(!PDF_NOISE_RE.test(line.trim())&&line.trim().length>3) rawText+=line+'\n';
+    }
+  }
+  rawText=rawText.trim();
+  if(rawText.replace(/\s+/g,'').length>120){
+    return {type:'labs-text',text:rawText.slice(0,15000)};
   }
 
   // Scanned/image-based PDF — render first page as JPEG and use vision

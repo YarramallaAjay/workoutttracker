@@ -227,34 +227,63 @@ RULES — follow strictly:
 }
 
 /* ---- lab extraction prompts ---- */
-function buildLabsTextPrompt(text) {
+function buildLabsTextPrompt(text, preExtracted, reportDate) {
+  if (preExtracted) {
+    // Data already parsed client-side into structured rows
+    return `You are a medical data extraction assistant. The client has already extracted test results from a lab report PDF. Each line follows this format:
+TEST: <name> | VALUE: <number> [unit] | REF: <reference range> | STATUS: <flag> | SECTION: <category>
+
+Your job:
+1. Normalize each test name to its standard medical name (e.g., "SGPT" → "ALT (SGPT)", "Hb" → "Hemoglobin")
+2. If a reference range is provided, compare the value to determine flag (normal/high/low)
+3. If STATUS was provided from the report, use it as a hint but verify against the reference range
+4. Add the correct unit if missing (use standard medical units)
+5. Skip any rows that are clearly NOT medical tests (headers, totals, notes)
+6. Do NOT include duplicate tests — each marker should appear exactly once
+
+PRE-EXTRACTED TEST DATA:
+${text}
+
+${reportDate ? `REPORT DATE FOUND: ${reportDate}` : ''}
+
+Respond ONLY with valid JSON:
+{
+  "reportDate": "${reportDate || 'null'}",
+  "markers": [
+    {
+      "name": "Hemoglobin",
+      "value": 13.2,
+      "unit": "g/dL",
+      "refRange": "13.0-17.0",
+      "flag": "normal"
+    }
+  ],
+  "summary": "2-3 sentence plain-English summary highlighting key findings, any values outside normal range, and what needs attention"
+}`;
+  }
+
+  // Fallback: raw text (noise-filtered but not parsed into rows)
   return `You are a medical data extraction assistant. Extract all measurable health markers from this lab report text.
 
-The text below is extracted from a PDF lab report. It preserves the table structure using tab-separated columns.
-Each row typically contains: Test Name, Value, Unit, Reference Range, and sometimes a flag/status.
+The text below is from a PDF lab report with hospital info and headers already stripped. Focus ONLY on test results.
 
 Instructions:
-- Parse each row carefully. Columns are separated by tabs or multiple spaces.
-- Match each test name with its corresponding value, unit, and reference range from the SAME ROW.
-- Extract every test result you can find (blood panel, hormones, vitamins, metabolic markers, urine analysis, etc.)
-- Use standard medical abbreviations for units (mg/dL, g/dL, IU/L, nmol/L, etc.)
-- Note the reference range when visible
-- Compare the value against the reference range to determine the flag:
-  - "normal" if value is within the reference range
-  - "high" if value is above the upper limit
-  - "low" if value is below the lower limit
-- Only include markers you can clearly identify with their values — do not guess
+- Find every test result: look for patterns like "Test Name [tab/space] numeric value [space] unit [space] reference range"
+- Extract: test name, numeric value, unit, reference range
+- Compare value to reference range to set flag: "normal" (within range), "high" (above), "low" (below)
+- Use standard medical names and abbreviations for units
+- Each marker should appear exactly ONCE — no duplicates
+- Ignore non-test data (patient info, hospital details, notes, dates, page numbers)
 
-LAB REPORT TEXT (tab-separated columns):
+LAB REPORT TEXT:
 ${text}
 
 Respond ONLY with valid JSON:
 {
-  "reportDate": "YYYY-MM-DD or null if not visible",
-  "labName": "lab name or null",
+  "reportDate": "YYYY-MM-DD or null",
   "markers": [
     {
-      "name": "Haemoglobin",
+      "name": "Hemoglobin",
       "value": 13.2,
       "unit": "g/dL",
       "refRange": "13.0-17.0",
@@ -339,10 +368,10 @@ export default async function handler(req, res) {
 
   /* ---- labs-text: extract from PDF text ---- */
   if (type === 'labs-text') {
-    const { text } = body;
+    const { text, preExtracted, reportDate } = body;
     if (!text) return res.status(400).json({ error: 'text required for labs-text extraction.' });
     try {
-      const contents = [{ parts: [{ text: buildLabsTextPrompt(text) }] }];
+      const contents = [{ parts: [{ text: buildLabsTextPrompt(text, preExtracted, reportDate) }] }];
       const out = await callWithFallback(contents, { temperature: 0.1 }, { needsVision: false });
       if (out.err) return res.status(out.err).json({ error: out.msg });
       const result = strip(out.raw);

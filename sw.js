@@ -1,6 +1,6 @@
 /* HealthPulse service worker — offline app shell.
    Bump CACHE on every deploy so clients pick the new build up. */
-const CACHE = 'healthpulse-v3';
+const CACHE = 'healthpulse-v4';
 const SHELL = [
   './',
   './index.html',
