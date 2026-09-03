@@ -20,7 +20,6 @@ const GROQ_KEY = process.env.GROQ_API_KEY || '';
 const ALL_MODELS = [
   { id: 'gemini-flash', provider: 'gemini', model: 'gemini-3.6-flash', key: GEMINI_KEY, vision: true },
   { id: 'groq-llama', provider: 'openai', model: 'llama-3.3-70b-versatile', url: 'https://api.groq.com/openai/v1/chat/completions', key: GROQ_KEY, vision: false },
-  { id: 'gemini-flash-preview', provider: 'gemini', model: 'gemini-2.5-flash-preview-05-20', key: GEMINI_KEY, vision: true },
 ];
 const MODELS = ALL_MODELS.filter(m => m.key);
 
