@@ -37,6 +37,8 @@ async function callGemini(contents, { temperature = 0.7, maxOutputTokens = 2048 
       safetySettings: [
         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
       ],
     }),
   });
@@ -143,6 +145,32 @@ Respond ONLY with valid JSON:
 }`;
 }
 
+/* ---- parse Gemini response: friendly errors for safety blocks, rate limits, etc. ---- */
+async function parseGeminiResponse(r, label) {
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    const msg = e?.error?.message || '';
+    const status = r.status;
+    if (status === 429 || msg.includes('high demand') || msg.includes('quota')) {
+      return { err: 429, status, msg: 'AI is busy. Try again in a moment.' };
+    }
+    return { err: 502, status, msg: `${label} error (${status}): ${msg || 'unknown'}` };
+  }
+  const json = await r.json();
+  const candidate = json.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+  if (finishReason === 'SAFETY') {
+    return { err: 422, status: 200, msg: 'The file was blocked by the AI safety filter. Try a clearer image or use the PDF option.' };
+  }
+  const blockReason = json.promptFeedback?.blockReason;
+  if (blockReason) {
+    return { err: 422, status: 200, msg: `AI blocked this content (${blockReason}). Try a different file.` };
+  }
+  const raw = candidate?.content?.parts?.[0]?.text || '';
+  if (!raw) return { err: 502, status: 200, msg: `${label} returned empty content (finishReason: ${finishReason || 'unknown'}).` };
+  return { raw };
+}
+
 /* ---- main handler ---- */
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -179,16 +207,9 @@ export default async function handler(req, res) {
         ],
       }], { temperature: 0.1 });
 
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}));
-        const msg = e?.error?.message || '';
-        if (r.status === 429 || msg.includes('high demand')) return res.status(429).json({ error: 'AI is busy. Try again in a moment.' });
-        return res.status(502).json({ error: 'AI error: ' + (msg || r.status) });
-      }
-      const json = await r.json();
-      const raw = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (!raw) return res.status(502).json({ error: 'AI returned no content.' });
-      const result = strip(raw);
+      const parsed = await parseGeminiResponse(r, 'Labs image');
+      if (parsed.err) return res.status(parsed.err).json({ error: parsed.msg });
+      const result = strip(parsed.raw);
       if (!result) return res.status(502).json({ error: 'Could not parse lab extraction response.' });
       return res.status(200).json({ ok: true, result });
     } catch (err) {
@@ -205,16 +226,9 @@ export default async function handler(req, res) {
         parts: [{ text: buildLabsTextPrompt(text) }],
       }], { temperature: 0.1 });
 
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}));
-        const msg = e?.error?.message || '';
-        if (r.status === 429 || msg.includes('high demand')) return res.status(429).json({ error: 'AI is busy. Try again in a moment.' });
-        return res.status(502).json({ error: 'AI error: ' + (msg || r.status) });
-      }
-      const json = await r.json();
-      const raw = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (!raw) return res.status(502).json({ error: 'AI returned no content.' });
-      const result = strip(raw);
+      const parsed = await parseGeminiResponse(r, 'Labs text');
+      if (parsed.err) return res.status(parsed.err).json({ error: parsed.msg });
+      const result = strip(parsed.raw);
       if (!result) return res.status(502).json({ error: 'Could not parse lab extraction response.' });
       return res.status(200).json({ ok: true, result });
     } catch (err) {
@@ -251,17 +265,12 @@ export default async function handler(req, res) {
     try {
       const r = await callGemini(geminiContents, { temperature: 0.75, maxOutputTokens: 2048 });
 
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}));
-        const msg = e?.error?.message || '';
-        if (r.status === 429 || msg.includes('high demand')) return res.status(429).json({ error: 'AI is busy right now. Try again in a moment.' });
-        if (r.status === 400) return res.status(503).json({ error: 'Invalid GEMINI_API_KEY — check Vercel env vars.' });
-        return res.status(502).json({ error: 'AI service error: ' + (msg || r.status) });
+      const parsed = await parseGeminiResponse(r, 'Chat');
+      if (parsed.err) {
+        if (parsed.status === 400) return res.status(503).json({ error: 'Invalid GEMINI_API_KEY — check Vercel env vars.' });
+        return res.status(parsed.err).json({ error: parsed.msg });
       }
-
-      const json = await r.json();
-      const raw = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (!raw) return res.status(502).json({ error: 'AI returned no content.' });
+      const raw = parsed.raw;
 
       let result = strip(raw);
       if (!result) {

@@ -1036,17 +1036,17 @@ function prepBodyData(){
   };
 }
 
-/* ---- image compression (max 700px, JPEG 0.45) ---- */
+/* ---- image compression (max 1024px, JPEG 0.72 — large enough for OCR) ---- */
 async function compressImage(file){
   return new Promise(resolve=>{
     const img=new Image(),url=URL.createObjectURL(file);
     img.onload=()=>{
-      const MAX=700; let w=img.naturalWidth,h=img.naturalHeight;
+      const MAX=1024; let w=img.naturalWidth,h=img.naturalHeight;
       if(w>MAX||h>MAX){const s=MAX/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
       const c=document.createElement('canvas'); c.width=w; c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
       URL.revokeObjectURL(url);
-      resolve({base64:c.toDataURL('image/jpeg',0.45).split(',')[1],mimeType:'image/jpeg'});
+      resolve({base64:c.toDataURL('image/jpeg',0.72).split(',')[1],mimeType:'image/jpeg'});
     };
     img.src=url;
   });
