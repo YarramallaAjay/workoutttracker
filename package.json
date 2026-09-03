@@ -1,0 +1,8 @@
+{
+  "name": "iron-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gym tracker and coach: photo-based physique measurement, a split built around it, and matching macros.",
+  "engines": { "node": ">=20" }
+}
