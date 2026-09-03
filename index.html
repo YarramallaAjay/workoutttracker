@@ -1052,26 +1052,55 @@ async function compressImage(file){
   });
 }
 
-/* ---- PDF text extraction via PDF.js CDN ---- */
-async function extractPdfText(file){
-  if(!window.pdfjsLib){
-    await new Promise((res,rej)=>{
-      const s=document.createElement('script');
-      s.src='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
-      s.onload=res; s.onerror=rej; document.head.appendChild(s);
-    });
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc=
-      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-  }
+/* ---- PDF.js: load CDN library once ---- */
+async function loadPdfJs(){
+  await new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    s.onload=res; s.onerror=rej; document.head.appendChild(s);
+  });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc=
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+}
+
+/* ---- Render a PDF page to a compressed JPEG (for scanned/image PDFs) ---- */
+async function pdfPageToImage(pdfDoc, pageNum){
+  const page=await pdfDoc.getPage(pageNum);
+  const MAX=1200;
+  const raw=page.getViewport({scale:1});
+  const scale=Math.min(2.0, MAX/Math.max(raw.width,raw.height));
+  const vp=page.getViewport({scale});
+  const c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+  await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+  return c.toDataURL('image/jpeg',0.82).split(',')[1];
+}
+
+/* ---- Process PDF: try text first, fall back to rendering page 1 as image ---- */
+async function processPdf(file){
+  if(!window.pdfjsLib) await loadPdfJs();
   const ab=await file.arrayBuffer();
   const pdf=await window.pdfjsLib.getDocument({data:ab}).promise;
+
+  // Attempt text extraction (works for text-based PDFs)
   let text='';
-  for(let i=1;i<=pdf.numPages;i++){
+  const pagesToScan=Math.min(pdf.numPages,15);
+  for(let i=1;i<=pagesToScan;i++){
     const pg=await pdf.getPage(i);
     const tc=await pg.getTextContent();
     text+=tc.items.map(it=>it.str).join(' ')+'\n';
   }
-  return text.trim().slice(0,12000);
+  text=text.trim();
+
+  // If we got meaningful text (>120 chars of non-whitespace), use text mode
+  const meaningful=text.replace(/\s+/g,'').length;
+  if(meaningful>120){
+    return {type:'labs-text',text:text.slice(0,12000)};
+  }
+
+  // Scanned/image-based PDF — render first page as JPEG and use vision
+  toast('Scanned PDF detected — rendering as image…');
+  const base64=await pdfPageToImage(pdf,1);
+  return {type:'labs',imageBase64:base64,mimeType:'image/jpeg'};
 }
 
 /* ---- lab upload with client-side pre-processing ---- */
@@ -1081,10 +1110,8 @@ async function uploadLabs(file){
   try{
     let payload;
     if(file.type==='application/pdf'){
-      toast('Extracting text from PDF…');
-      const text=await extractPdfText(file);
-      if(!text) throw new Error('No readable text found. Try uploading a screenshot instead.');
-      payload={type:'labs-text',text};
+      toast('Processing PDF…');
+      payload=await processPdf(file);
     } else {
       toast('Compressing image…');
       const {base64,mimeType}=await compressImage(file);
