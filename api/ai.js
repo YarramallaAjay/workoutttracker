@@ -25,7 +25,10 @@ const MODELS = ALL_MODELS.filter(m => m.key);
 
 /* ---- JSON extraction ---- */
 function strip(raw) {
-  const s = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+  // Remove Qwen/DeepSeek <think>...</think> reasoning blocks
+  let s = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  // Remove markdown code fences
+  s = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
   let result = null;
   try { result = JSON.parse(s); } catch (_) {}
   if (!result) {
