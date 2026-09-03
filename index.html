@@ -1103,6 +1103,20 @@ async function processPdf(file){
   return {type:'labs',imageBase64:base64,mimeType:'image/jpeg'};
 }
 
+/* ---- fetch with auto-retry on 429 ---- */
+async function aiFetch(url,opts,maxRetries=3){
+  for(let attempt=0;attempt<=maxRetries;attempt++){
+    const r=await fetch(url,opts);
+    if(r.status===429&&attempt<maxRetries){
+      const wait=Math.min(5+attempt*5,20);
+      toast(`AI is busy — retrying in ${wait}s…`);
+      await new Promise(ok=>setTimeout(ok,wait*1000));
+      continue;
+    }
+    return r;
+  }
+}
+
 /* ---- lab upload with client-side pre-processing ---- */
 async function uploadLabs(file){
   if(!file) return;
@@ -1118,7 +1132,7 @@ async function uploadLabs(file){
       payload={type:'labs',imageBase64:base64,mimeType};
     }
     toast('Sending to AI…');
-    const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const r=await aiFetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const json=await r.json();
     if(json.ok){
       saveLabs(json.result);
@@ -1152,7 +1166,7 @@ async function aiChat(context,userText,skipIntake){
   AI.loading=context; render();
   try{
     const profile=AI_PREP[context]?.();
-    const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},
+    const r=await aiFetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({type:'chat',context,messages:msgs,profile,skipIntake:!!skipIntake})});
     const json=await r.json();
     if(json.ok){
