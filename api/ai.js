@@ -14,7 +14,7 @@
  */
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const FLASH = `${BASE}/gemini-1.5-flash:generateContent`;
+const FLASH = `${BASE}/gemini-2.0-flash:generateContent`;
 const API_KEY = process.env.GEMINI_API_KEY || '';
 
 /* ---- prompt builders --------------------------------------------------- */
