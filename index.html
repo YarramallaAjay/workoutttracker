@@ -400,6 +400,21 @@ dialog::backdrop{background:rgba(8,12,20,.6);backdrop-filter:blur(4px)}
   padding:15px 16px;border-bottom:1px solid var(--line-soft);
 }
 .dlg-b{padding:16px;max-height:min(70vh,580px);overflow:auto}
+
+/* ---- AI coach ---- */
+.ai-card{background:linear-gradient(135deg,var(--accent-soft),color-mix(in srgb,var(--accent-2) 8%,var(--accent-soft)));border:1px solid var(--accent-line);border-radius:var(--r);padding:16px}
+.ai-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:var(--accent-ink);padding:3px 11px 3px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.06em;font-family:"IBM Plex Mono",monospace;box-shadow:0 2px 6px color-mix(in srgb,var(--accent) 35%,transparent)}
+.ai-list-item{display:flex;gap:7px;padding:4px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;line-height:1.5}
+.ai-list-item:last-child{border-bottom:0}
+.ai-spin{display:inline-block;width:14px;height:14px;border:2px solid var(--accent-line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex:none;margin-top:1px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ---- lab results ---- */
+.lab-row{display:grid;grid-template-columns:1fr 80px 110px 52px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:13px}
+.lab-row:last-child{border-bottom:0}
+.lab-val{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-weight:600}
+.lab-row.high .lab-val{color:var(--bad)}
+.lab-row.low .lab-val{color:var(--warn)}
+.lab-row.normal .lab-val{color:var(--good)}
 </style>
 </head>
 <body>
@@ -936,6 +951,244 @@ function derivedPriorities(){
 }
 function goalLabel(g){ return {cut:'Lose fat',recomp:'Recomp',muscle:'Build muscle',strength:'Get stronger'}[g]||g; }
 
+/* ============================================================
+   AI COACH — Gemini 1.5 Flash (free tier)
+   ============================================================ */
+const AI={coach:null,plan:null,fuel:null,body:null,loading:''};
+/* labs stored separately so they persist across sessions */
+function getLabs(){ try{ return JSON.parse(localStorage.getItem('ironledger.labs')||'null'); }catch(e){ return null; } }
+function saveLabs(v){ try{ localStorage.setItem('ironledger.labs',JSON.stringify(v)); }catch(e){} }
+
+function prepCoachData(){
+  const p=S.profile,bf=currentBF(),wl=weekLogs();
+  const fm=bf!=null?ffmi(currentWeight(),p.heightCm,bf):null;
+  const lastLog=S.logs[S.logs.length-1];
+  const streak=(()=>{ let n=0; const days=new Set(S.logs.map(l=>l.d));
+    for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);
+      const k=d.toISOString().slice(0,10); if(days.has(k))n++; else if(i>0&&n>0)break;} return n;})();
+  const m=latestMeasure();
+  return{
+    name:p.name,sex:p.sex,age:p.age,heightCm:p.heightCm,weightKg:currentWeight(),
+    goal:p.goal,goalLabel:goalLabel(p.goal),experience:p.experience,days:p.days,
+    equipment:p.equipment,diet:p.diet,activity:p.activity,
+    bf,ffmi:fm?.norm??null,wht:m?.waist?r2(m.waist/p.heightCm):null,
+    sessionsThisWeek:wl.length,totalSessions:S.logs.length,
+    lastSession:lastLog?lastLog.name+' ('+lastLog.d+', '+lastLog.entries.length+' exercises)':null,
+    streak,priorities:derivedPriorities().map(k=>MUSCLES[k]).filter(Boolean),
+    labs:getLabs(),
+  };
+}
+function prepPlanData(){
+  const p=S.profile,plan=S.plan,vol=plan?weeklyVolume(plan):{};
+  return{
+    sex:p.sex,age:p.age,goal:p.goal,goalLabel:goalLabel(p.goal),
+    experience:p.experience,days:p.days,equipment:p.equipment,
+    splitType:plan?shapeName(plan):'none',
+    splitDays:plan?.days.map(d=>({name:d.name,exercises:d.blocks.slice(0,4).map(b=>EXBY[b.ex]?.n).filter(Boolean)})),
+    volume:Object.fromEntries(Object.entries(vol).filter(([,v])=>v>0).map(([k,v])=>[MUSCLES[k]||k,Math.round(v*10)/10])),
+    priorities:derivedPriorities().map(k=>MUSCLES[k]).filter(Boolean),
+    labs:getLabs(),
+  };
+}
+function prepFuelData(){
+  const p=S.profile,bf=currentBF(),t=nutritionTargets(p,bf),day=S.dietDay;
+  return{
+    sex:p.sex,age:p.age,weightKg:currentWeight(),bf,
+    goal:p.goal,goalLabel:goalLabel(p.goal),diet:p.diet,cuisine:p.cuisine,budget:p.budget,activity:p.activity,
+    targets:{...t,proteinPerKg:r1(t.protein/currentWeight())},
+    meals:day?.meals.map(ml=>{const mac=macrosOf(ml.items);
+      return{slot:ml.tpl.s,name:ml.tpl.n,kcal:Math.round(mac.k),protein:Math.round(mac.p),carbs:Math.round(mac.c),fat:Math.round(mac.f)};})??[],
+    totals:day?{kcal:Math.round(day.totals.k),protein:Math.round(day.totals.p),carbs:Math.round(day.totals.c),fat:Math.round(day.totals.f)}:null,
+    labs:getLabs(),
+  };
+}
+function prepBodyData(){
+  const p=S.profile,bf=currentBF(),m=latestMeasure(),fm=bf!=null?ffmi(currentWeight(),p.heightCm,bf):null;
+  const bfb=bf!=null?bfBand(p.sex,bf):null;
+  const wPts=S.measures.filter(x=>x.w).slice(-6);
+  const ph=[...S.photos].reverse().find(x=>x.derived?.sw),d=ph?.derived;
+  return{
+    sex:p.sex,age:p.age,heightCm:p.heightCm,weightKg:currentWeight(),goal:p.goal,
+    bf,bfBand:bfb?.label??null,lbm:fm?.lbm??null,ffmi:fm?.norm??null,
+    wht:m?.waist?r2(m.waist/p.heightCm):null,whr:m?.waist&&m?.hip?r2(m.waist/m.hip):null,
+    sw:d?.sw??null,shCm:d?.shCm??null,
+    weightTrend:wPts.length>1?wPts[0].d+': '+wPts[0].w+'kg → '+wPts[wPts.length-1].d+': '+wPts[wPts.length-1].w+'kg':'insufficient data',
+    labs:getLabs(),
+  };
+}
+
+async function aiAnalyze(type){
+  AI.loading=type; render();
+  try{
+    const prep={coach:prepCoachData,plan:prepPlanData,fuel:prepFuelData,body:prepBodyData};
+    const data=prep[type]?.();
+    const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,data})});
+    const json=await r.json();
+    if(json.ok){AI[type]=json.result;toast('AI insights ready.');}
+    else if(json.setup){toast('Add GEMINI_API_KEY to Vercel env vars to enable AI.');}
+    else toast(json.error||'AI request failed.');
+  }catch(e){toast('Could not reach AI. Check your connection.');}
+  AI.loading=''; render();
+}
+
+/* ---- lab results upload ---- */
+async function uploadLabs(file){
+  if(!file) return;
+  toast('Reading your report…');
+  const rd=new FileReader();
+  rd.onload=async()=>{
+    const dataUrl=rd.result;
+    const base64=dataUrl.split(',')[1];
+    const mimeType=file.type||'image/jpeg';
+    try{
+      const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({type:'labs',imageBase64:base64,mimeType})});
+      const json=await r.json();
+      if(json.ok){
+        saveLabs(json.result);
+        /* clear old AI results so they regenerate with lab context */
+        AI.coach=null;AI.plan=null;AI.fuel=null;AI.body=null;
+        toast('Lab report extracted. AI insights now include your health data.');
+        render();
+      } else if(json.setup){
+        toast('Add GEMINI_API_KEY to Vercel to enable lab analysis.');
+      } else {
+        toast(json.error||'Could not extract lab data.');
+      }
+    }catch(e){toast('Upload failed. Check your connection.');}
+  };
+  rd.readAsDataURL(file);
+}
+function deleteLabs(){ if(!confirm('Remove your uploaded lab data?'))return; saveLabs(null); AI.coach=null;AI.plan=null;AI.fuel=null;AI.body=null; render(); toast('Lab data removed.'); }
+
+/* ---- AI render helpers ---- */
+function aiLoadingHtml(msg){
+  return `<div style="display:flex;align-items:center;gap:8px;padding:12px 0"><span class="ai-spin"></span><span class="tiny muted">${msg}</span></div>`;
+}
+function aiListItems(items,icon,color){
+  return (items||[]).map(s=>`<div class="ai-list-item"><span style="color:${color};flex:none">${icon}</span><span>${esc(s)}</span></div>`).join('');
+}
+function labsBannerHtml(){
+  const labs=getLabs(); if(!labs) return '';
+  const flagged=(labs.markers||[]).filter(m=>m.flag!=='normal');
+  return `<div class="note" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <span class="tiny"><b>Lab data active</b> · ${labs.markers?.length||0} markers · ${flagged.length} flagged · ${labs.reportDate||'date unknown'}</span>
+    <button class="btn ghost sm" onclick="deleteLabs()">Remove</button>
+  </div>`;
+}
+
+function aiCoachHtml(){
+  if(!S.setup) return '';
+  const r=AI.coach,loading=AI.loading==='coach';
+  return `<div class="ai-card" style="margin-bottom:14px">
+    <div class="between" style="margin-bottom:10px">
+      <span class="ai-badge">✦ AI Coach</span>
+      ${r?`<button class="btn ghost sm" onclick="aiAnalyze('coach')" ${loading?'disabled':''}>Refresh</button>`:''}
+    </div>
+    ${loading?aiLoadingHtml('Your coach is thinking…'):r?`
+      <p style="font-weight:700;font-size:14px;margin-bottom:6px">${esc(r.greeting)}</p>
+      <p class="tiny" style="margin-bottom:10px">${esc(r.insight)}</p>
+      <div class="note" style="margin-bottom:8px"><b>Today's tip:</b> ${esc(r.tip)}</div>
+      ${r.labNote?`<div class="note" style="border-color:var(--warn);background:var(--warn-soft);margin-bottom:8px"><b>Health note:</b> ${esc(r.labNote)}</div>`:''}
+      <div class="between"><span class="xtiny muted">Mental focus today</span><span class="pill neutral">${esc(r.focus)}</span></div>
+    `:`<p class="tiny muted" style="margin-bottom:10px">Get a personalised coaching insight based on your profile, body composition, training history${getLabs()?', and your lab results':''}.</p>
+      <button class="btn sm" onclick="aiAnalyze('coach')">Get today's insight</button>`}
+  </div>`;
+}
+function aiPlanHtml(){
+  if(!S.setup||!S.plan) return '';
+  const r=AI.plan,loading=AI.loading==='plan';
+  return `<div class="ai-card">
+    <div class="between" style="margin-bottom:${r||loading?12:0}px">
+      <span class="ai-badge">✦ AI Plan Review</span>
+      ${r?`<button class="btn ghost sm" onclick="aiAnalyze('plan')" ${loading?'disabled':''}>Refresh</button>`:''}
+    </div>
+    ${loading?aiLoadingHtml('Analysing your training split…'):r?`
+      <p class="tiny" style="margin-bottom:12px">${esc(r.assessment)}</p>
+      <div class="grid2" style="gap:10px;margin-bottom:12px">
+        <div><div class="eyebrow" style="margin-bottom:6px">Strengths</div>${aiListItems(r.strengths,'✓','var(--good)')}</div>
+        <div><div class="eyebrow" style="margin-bottom:6px">To improve</div>${aiListItems(r.improvements,'→','var(--accent)')}</div>
+      </div>
+      <div class="note" style="margin-bottom:8px">${esc(r.recommendation)}</div>
+      ${r.labInsight?`<div class="note" style="border-color:var(--warn);background:var(--warn-soft);margin-bottom:8px"><b>Lab insight:</b> ${esc(r.labInsight)}</div>`:''}
+      ${r.weeklyFocus?`<div class="between"><span class="xtiny muted">This week's focus</span><span class="pill neutral">${esc(r.weeklyFocus)}</span></div>`:''}
+    `:`<p class="tiny muted" style="margin-bottom:10px">AI analyses your training split and suggests evidence-based improvements for your goal and weekly volume.</p>
+      <button class="btn sm" onclick="aiAnalyze('plan')">Analyse my split</button>`}
+  </div>`;
+}
+function aiFuelHtml(){
+  if(!S.setup) return '';
+  const r=AI.fuel,loading=AI.loading==='fuel';
+  return `<div class="ai-card">
+    <div class="between" style="margin-bottom:${r||loading?12:0}px">
+      <span class="ai-badge">✦ AI Nutritionist</span>
+      ${r?`<button class="btn ghost sm" onclick="aiAnalyze('fuel')" ${loading?'disabled':''}>Refresh</button>`:''}
+    </div>
+    ${loading?aiLoadingHtml('Reviewing your meal plan…'):r?`
+      <p class="tiny" style="margin-bottom:12px">${esc(r.assessment)}</p>
+      ${r.highlights?.length?`<div style="margin-bottom:10px">${aiListItems(r.highlights,'✓','var(--good)')}</div>`:''}
+      ${r.tips?.length?`<div style="margin-bottom:10px"><div class="eyebrow" style="margin-bottom:6px">Tips</div>${aiListItems(r.tips,'→','var(--accent)')}</div>`:''}
+      ${r.timing?`<div class="note" style="margin-bottom:8px"><b>Meal timing:</b> ${esc(r.timing)}</div>`:''}
+      ${r.warning?`<div class="note" style="border-color:var(--warn);background:var(--warn-soft);margin-bottom:8px"><b>Watch:</b> ${esc(r.warning)}</div>`:''}
+      ${r.labInsight?`<div class="note" style="border-color:var(--warn);background:var(--warn-soft)"><b>From your labs:</b> ${esc(r.labInsight)}</div>`:''}
+    `:`<p class="tiny muted" style="margin-bottom:10px">AI reviews your macro targets and meal plan, giving personalised advice for your diet type, goal${getLabs()?', and lab results':''}.</p>
+      <button class="btn sm" onclick="aiAnalyze('fuel')">Analyse my nutrition</button>`}
+  </div>`;
+}
+function aiBodyHtml(){
+  if(!S.setup) return '';
+  const r=AI.body,loading=AI.loading==='body';
+  return `<div class="ai-card">
+    <div class="between" style="margin-bottom:${r||loading?12:0}px">
+      <span class="ai-badge">✦ AI Body Analysis</span>
+      ${r?`<button class="btn ghost sm" onclick="aiAnalyze('body')" ${loading?'disabled':''}>Refresh</button>`:''}
+    </div>
+    ${loading?aiLoadingHtml('Analysing your physique data…'):r?`
+      <p class="tiny" style="margin-bottom:12px">${esc(r.assessment)}</p>
+      ${r.bfInterpretation?`<div class="note" style="margin-bottom:10px">${esc(r.bfInterpretation)}</div>`:''}
+      ${r.priorities?.length?`<div style="margin-bottom:10px"><div class="eyebrow" style="margin-bottom:6px">Top priorities</div>${aiListItems(r.priorities,'→','var(--accent)')}</div>`:''}
+      ${r.advice?`<p class="tiny" style="margin-bottom:8px">${esc(r.advice)}</p>`:''}
+      ${r.labInsight?`<div class="note" style="border-color:var(--warn);background:var(--warn-soft);margin-bottom:8px"><b>From your labs:</b> ${esc(r.labInsight)}</div>`:''}
+      ${r.encouragement?`<p class="xtiny" style="color:var(--accent);font-style:italic;text-align:right">${esc(r.encouragement)}</p>`:''}
+    `:`<p class="tiny muted" style="margin-bottom:10px">AI interprets your body composition metrics, photo measurements${getLabs()?', and health report data':''} for personalised insights.</p>
+      <button class="btn sm" onclick="aiAnalyze('body')">Analyse my physique</button>`}
+  </div>`;
+}
+
+/* ---- labs panel ---- */
+function labsPanelHtml(){
+  const labs=getLabs();
+  return `<div class="card pad stack">
+    <div class="between">
+      <div><span class="ai-badge" style="margin-bottom:6px">✦ Health Report</span>
+        <h2 style="margin-top:6px">Lab Results</h2></div>
+      ${labs?`<button class="btn ghost sm" onclick="deleteLabs()">Remove</button>`:''}
+    </div>
+    ${labs?`
+      <p class="tiny muted">${esc(labs.summary||'')}</p>
+      ${labs.reportDate?`<div class="between"><span class="xtiny muted">Report date</span><span class="pill neutral">${esc(labs.reportDate)}</span></div>`:''}
+      <div class="scroll-x"><table class="data"><thead><tr><th>Marker</th><th>Value</th><th>Ref Range</th><th>Flag</th></tr></thead><tbody>
+      ${(labs.markers||[]).map(m=>`<tr class="${m.flag||''}"><td>${esc(m.name)}</td>
+        <td class="lab-val ${m.flag||''}">${esc(String(m.value))} ${esc(m.unit||'')}</td>
+        <td class="mono tiny">${esc(m.refRange||'—')}</td>
+        <td><span class="pill ${m.flag==='high'?'bad':m.flag==='low'?'warn':'good'}">${esc(m.flag||'—')}</span></td>
+      </tr>`).join('')}
+      </tbody></table></div>
+    `:`
+      <p class="tiny muted">Upload a blood test, hormone panel, or any health report image. AI extracts the values and uses them to personalise your training plan, nutrition advice, and body analysis.</p>
+      <div class="drop" onclick="$('#labFile').click()" style="cursor:pointer">
+        <div style="font-size:28px;margin-bottom:8px">🩺</div>
+        <p class="tiny muted" style="margin-bottom:10px">Tap to upload a lab report image or PDF screenshot</p>
+        <button class="btn sm" onclick="event.stopPropagation();$('#labFile').click()">Choose file</button>
+      </div>
+    `}
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      ${labs?`<button class="btn ghost sm" onclick="$('#labFile').click()">Upload new report</button>`:''}
+      <input type="file" id="labFile" accept="image/*,application/pdf" hidden onchange="uploadLabs(this.files[0]);this.value=''">
+    </div>
+  </div>`;
+}
+
 /* ---- tiny charts (single series, tokenised colours) ---- */
 function lineChart(points,{w=320,h=88,unit=''}={}){
   if(points.length<2) return '<p class="tiny muted">Two entries and a line appears here.</p>';
@@ -1083,6 +1336,8 @@ function renderToday(){
     <p class="xtiny" style="margin-top:8px"><a href="${board.u}" target="_blank" rel="noopener">${esc(board.s)} ↗</a></p>
   </div>
 
+  ${labsBannerHtml()}
+  ${aiCoachHtml()}
   ${streak>1?`<p class="xtiny muted" style="text-align:center;margin-top:12px">${streak} day streak. ${S.logs.length} sessions logged all time.</p>`:''}
   <div style="height:8px"></div>`;
 }
@@ -1327,6 +1582,8 @@ function renderBody(){
     <p class="xtiny muted">Circumference estimates carry a few points of error against DEXA. Their value is the trend — measure monthly and watch the direction.</p>
   </div>`:''}
 
+  ${aiBodyHtml()}
+
   <div class="card pad stack">
     <h2>3 · What to prioritise</h2>
     <p class="tiny muted">Picked up from your photo, plus anything you add. These muscles get an extra slot and an extra set in your split.</p>
@@ -1428,6 +1685,9 @@ function renderPlan(){
       </div></div><div class="ex-cue">${esc(e.c)}</div></div>`;}).join('')}
   </div>`).join('')}
 
+  ${aiPlanHtml()}
+  ${labsPanelHtml()}
+
   <div class="card pad stack">
     <h2>How to progress</h2>
     <p class="tiny muted">Double progression, and nothing cleverer. Stay at a weight until every set hits the top of its rep range at the written RIR, then add the smallest jump available — usually 2.5 kg on lower-body lifts, 1–2.5 kg upstairs — and start again at the bottom of the range.</p>
@@ -1466,6 +1726,8 @@ function renderFuel(){
     <div class="tile"><span class="k">Carbs</span><span class="v">${t.carb}<small> g</small></span><span class="s">fuel for the sets</span></div>
     <div class="tile"><span class="k">Fat</span><span class="v">${t.fat}<small> g</small></span><span class="s">hormones, satiety</span></div>
   </div>
+
+  ${aiFuelHtml()}
 
   <div class="card pad stack">
     <h2>How you eat</h2>
