@@ -1,21 +1,30 @@
 /**
- * Iron Ledger — AI Coach endpoint
- * Model: Google Gemini Flash (free tier: 15 RPM, ~1 M tokens/day)
+ * Iron Ledger — AI Coach endpoint (multi-model with automatic fallback)
  *
- * Setup:  get a free key → https://aistudio.google.com/app/apikey
- *         add GEMINI_API_KEY to Vercel env vars → redeploy.
+ * Models (all free tier):
+ *   1. Gemini 3.6 Flash   — primary, supports vision  (GEMINI_API_KEY)
+ *   2. Groq Llama 3.3 70B — text-only fallback        (GROQ_API_KEY)
+ *   3. Gemini 2.5 Flash   — secondary vision fallback  (same GEMINI_API_KEY)
  *
- * Types handled:
- *   chat      – conversational AI (asks intake questions, then gives guidance)
- *   labs      – extract structured data from compressed lab report image
- *   labs-text – extract structured data from PDF-extracted text
+ * On 429/5xx the handler automatically tries the next model.
+ * Vision tasks (lab image) skip non-vision models.
+ *
+ * Setup: add GEMINI_API_KEY (required) and optionally GROQ_API_KEY to Vercel env vars.
  */
 
-const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const FLASH = `${BASE}/gemini-3.6-flash:generateContent`;
-const API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+const GROQ_KEY = process.env.GROQ_API_KEY || '';
 
-/* ---- helpers ---- */
+/* ---- model registry (order = priority) ---- */
+const ALL_MODELS = [
+  { id: 'gemini-flash', provider: 'gemini', model: 'gemini-3.6-flash', key: GEMINI_KEY, vision: true },
+  { id: 'groq-llama', provider: 'openai', model: 'llama-3.3-70b-versatile', url: 'https://api.groq.com/openai/v1/chat/completions', key: GROQ_KEY, vision: false },
+  { id: 'gemini-flash-preview', provider: 'gemini', model: 'gemini-2.5-flash-preview-05-20', key: GEMINI_KEY, vision: true },
+];
+const MODELS = ALL_MODELS.filter(m => m.key);
+
+/* ---- JSON extraction ---- */
 function strip(raw) {
   const s = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
   let result = null;
@@ -27,22 +36,136 @@ function strip(raw) {
   return result;
 }
 
-async function callGemini(contents, { temperature = 0.7, maxOutputTokens = 2048 } = {}) {
-  const r = await fetch(`${FLASH}?key=${API_KEY}`, {
+/* ---- Gemini API caller ---- */
+const SAFETY = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+];
+
+async function callGeminiModel(model, contents, { temperature = 0.7, maxOutputTokens = 2048 } = {}) {
+  const url = `${GEMINI_BASE}/${model.model}:generateContent?key=${model.key}`;
+  return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents,
       generationConfig: { temperature, maxOutputTokens },
-      safetySettings: [
-        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-      ],
+      safetySettings: SAFETY,
     }),
   });
-  return r;
+}
+
+/* ---- OpenAI-compatible API caller (Groq, etc.) ---- */
+function geminiContentsToOpenAI(contents) {
+  const msgs = [];
+  for (const c of contents) {
+    const text = c.parts?.map(p => p.text).filter(Boolean).join('\n') || '';
+    if (!text) continue;
+    const role = c.role === 'model' ? 'assistant' : c.role === 'user' ? 'user' : 'user';
+    // First user message contains the system prompt — split it out
+    if (msgs.length === 0 && role === 'user') {
+      msgs.push({ role: 'system', content: text });
+    } else {
+      msgs.push({ role, content: text });
+    }
+  }
+  // OpenAI needs at least one user message after system
+  if (msgs.length === 1 && msgs[0].role === 'system') {
+    msgs.push({ role: 'user', content: 'Begin.' });
+  }
+  return msgs;
+}
+
+async function callOpenAIModel(model, contents, { temperature = 0.7, maxOutputTokens = 2048 } = {}) {
+  const messages = geminiContentsToOpenAI(contents);
+  return fetch(model.url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${model.key}`,
+    },
+    body: JSON.stringify({
+      model: model.model,
+      messages,
+      temperature,
+      max_tokens: maxOutputTokens,
+    }),
+  });
+}
+
+/* ---- unified response parser ---- */
+async function parseResponse(r, provider, label) {
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    const status = r.status;
+    const msg = provider === 'gemini'
+      ? (e?.error?.message || '')
+      : (e?.error?.message || e?.error || '');
+    if (status === 429 || String(msg).includes('high demand') || String(msg).includes('quota') || String(msg).includes('rate_limit')) {
+      return { err: 429, status, msg: 'Rate limited', retryable: true };
+    }
+    if (status >= 500) {
+      return { err: status, status, msg: `${label} error (${status}): ${msg || 'server error'}`, retryable: true };
+    }
+    return { err: status, status, msg: `${label} error (${status}): ${msg || 'unknown'}`, retryable: false };
+  }
+  const json = await r.json();
+
+  if (provider === 'gemini') {
+    const candidate = json.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    if (finishReason === 'SAFETY') {
+      return { err: 422, msg: 'Blocked by AI safety filter. Try a clearer image or PDF.', retryable: false };
+    }
+    const blockReason = json.promptFeedback?.blockReason;
+    if (blockReason) {
+      return { err: 422, msg: `AI blocked this content (${blockReason}).`, retryable: false };
+    }
+    const raw = candidate?.content?.parts?.[0]?.text || '';
+    if (!raw) return { err: 502, msg: `${label} empty (finishReason: ${finishReason || '?'})`, retryable: true };
+    return { raw };
+  }
+
+  // OpenAI-compatible (Groq)
+  const raw = json.choices?.[0]?.message?.content || '';
+  if (!raw) return { err: 502, msg: `${label} returned empty content.`, retryable: true };
+  return { raw };
+}
+
+/* ---- call with automatic model fallback ---- */
+async function callWithFallback(contents, opts, { needsVision = false } = {}) {
+  const eligible = MODELS.filter(m => !needsVision || m.vision);
+  if (!eligible.length) {
+    return { err: 503, msg: 'No AI models configured. Add GEMINI_API_KEY to Vercel env vars.' };
+  }
+
+  let lastError = null;
+  for (const model of eligible) {
+    try {
+      const caller = model.provider === 'gemini' ? callGeminiModel : callOpenAIModel;
+      const r = await caller(model, contents, opts);
+      const parsed = await parseResponse(r, model.provider, model.id);
+
+      if (parsed.raw) {
+        // Success
+        return { raw: parsed.raw, modelId: model.id };
+      }
+
+      if (!parsed.retryable) {
+        // Non-retryable error (safety block, bad request) — stop trying
+        return parsed;
+      }
+
+      // Retryable — try next model
+      lastError = parsed;
+    } catch (fetchErr) {
+      lastError = { err: 500, msg: `${model.id} fetch failed: ${fetchErr.message}`, retryable: true };
+    }
+  }
+
+  return lastError || { err: 502, msg: 'All AI models failed.' };
 }
 
 /* ---- chat system context builder ---- */
@@ -87,7 +210,7 @@ RULES — follow strictly:
   return prompt;
 }
 
-/* ---- lab extraction prompt ---- */
+/* ---- lab extraction prompts ---- */
 function buildLabsTextPrompt(text) {
   return `You are a medical data extraction assistant. Extract all measurable health markers from this lab report text.
 
@@ -145,32 +268,6 @@ Respond ONLY with valid JSON:
 }`;
 }
 
-/* ---- parse Gemini response: friendly errors for safety blocks, rate limits, etc. ---- */
-async function parseGeminiResponse(r, label) {
-  if (!r.ok) {
-    const e = await r.json().catch(() => ({}));
-    const msg = e?.error?.message || '';
-    const status = r.status;
-    if (status === 429 || msg.includes('high demand') || msg.includes('quota')) {
-      return { err: 429, status, msg: 'AI is busy. Try again in a moment.' };
-    }
-    return { err: 502, status, msg: `${label} error (${status}): ${msg || 'unknown'}` };
-  }
-  const json = await r.json();
-  const candidate = json.candidates?.[0];
-  const finishReason = candidate?.finishReason;
-  if (finishReason === 'SAFETY') {
-    return { err: 422, status: 200, msg: 'The file was blocked by the AI safety filter. Try a clearer image or use the PDF option.' };
-  }
-  const blockReason = json.promptFeedback?.blockReason;
-  if (blockReason) {
-    return { err: 422, status: 200, msg: `AI blocked this content (${blockReason}). Try a different file.` };
-  }
-  const raw = candidate?.content?.parts?.[0]?.text || '';
-  if (!raw) return { err: 502, status: 200, msg: `${label} returned empty content (finishReason: ${finishReason || 'unknown'}).` };
-  return { raw };
-}
-
 /* ---- main handler ---- */
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -180,11 +277,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'POST only.' });
   }
 
-  if (!API_KEY) {
+  if (!MODELS.length) {
     return res.status(503).json({
       ok: false,
       setup: true,
-      error: 'AI coach not configured.',
+      error: 'No AI keys configured. Add GEMINI_API_KEY (and optionally GROQ_API_KEY) to Vercel env vars.',
     });
   }
 
@@ -200,18 +297,17 @@ export default async function handler(req, res) {
     if (!imageBase64) return res.status(400).json({ error: 'imageBase64 required for labs extraction.' });
     const mt = mimeType || 'image/jpeg';
     try {
-      const r = await callGemini([{
+      const contents = [{
         parts: [
           { text: buildLabsImagePrompt() },
           { inlineData: { mimeType: mt, data: imageBase64 } },
         ],
-      }], { temperature: 0.1 });
-
-      const parsed = await parseGeminiResponse(r, 'Labs image');
-      if (parsed.err) return res.status(parsed.err).json({ error: parsed.msg });
-      const result = strip(parsed.raw);
+      }];
+      const out = await callWithFallback(contents, { temperature: 0.1 }, { needsVision: true });
+      if (out.err) return res.status(out.err).json({ error: out.msg });
+      const result = strip(out.raw);
       if (!result) return res.status(502).json({ error: 'Could not parse lab extraction response.' });
-      return res.status(200).json({ ok: true, result });
+      return res.status(200).json({ ok: true, result, model: out.modelId });
     } catch (err) {
       return res.status(500).json({ error: 'Labs extraction failed: ' + err.message });
     }
@@ -222,15 +318,12 @@ export default async function handler(req, res) {
     const { text } = body;
     if (!text) return res.status(400).json({ error: 'text required for labs-text extraction.' });
     try {
-      const r = await callGemini([{
-        parts: [{ text: buildLabsTextPrompt(text) }],
-      }], { temperature: 0.1 });
-
-      const parsed = await parseGeminiResponse(r, 'Labs text');
-      if (parsed.err) return res.status(parsed.err).json({ error: parsed.msg });
-      const result = strip(parsed.raw);
+      const contents = [{ parts: [{ text: buildLabsTextPrompt(text) }] }];
+      const out = await callWithFallback(contents, { temperature: 0.1 }, { needsVision: false });
+      if (out.err) return res.status(out.err).json({ error: out.msg });
+      const result = strip(out.raw);
       if (!result) return res.status(502).json({ error: 'Could not parse lab extraction response.' });
-      return res.status(200).json({ ok: true, result });
+      return res.status(200).json({ ok: true, result, model: out.modelId });
     } catch (err) {
       return res.status(500).json({ error: 'Labs text extraction failed: ' + err.message });
     }
@@ -248,7 +341,6 @@ export default async function handler(req, res) {
       ? 'Provide guidance immediately based on available profile data. Respond in JSON with phase "guidance".'
       : 'Begin now. Ask your first intake question(s). Respond in JSON with phase "intake".';
 
-    // Build Gemini contents: system context as first user turn, then conversation history
     const geminiContents = [
       { role: 'user', parts: [{ text: systemContext + '\n\n' + startDirective }] },
     ];
@@ -263,25 +355,20 @@ export default async function handler(req, res) {
     }
 
     try {
-      const r = await callGemini(geminiContents, { temperature: 0.75, maxOutputTokens: 2048 });
-
-      const parsed = await parseGeminiResponse(r, 'Chat');
-      if (parsed.err) {
-        if (parsed.status === 400) return res.status(503).json({ error: 'Invalid GEMINI_API_KEY — check Vercel env vars.' });
-        return res.status(parsed.err).json({ error: parsed.msg });
+      const out = await callWithFallback(geminiContents, { temperature: 0.75, maxOutputTokens: 2048 }, { needsVision: false });
+      if (out.err) {
+        if (out.status === 400) return res.status(503).json({ error: 'Invalid API key — check Vercel env vars.' });
+        return res.status(out.err).json({ error: out.msg });
       }
-      const raw = parsed.raw;
 
-      let result = strip(raw);
+      let result = strip(out.raw);
       if (!result) {
-        // Fallback: wrap as intake message so the client still shows something
-        result = { phase: 'intake', message: raw.slice(0, 600), guidance: null };
+        result = { phase: 'intake', message: out.raw.slice(0, 600), guidance: null };
       }
-      // Ensure required fields
       if (!result.phase) result.phase = 'intake';
       if (!result.message) result.message = '';
 
-      return res.status(200).json({ ok: true, result });
+      return res.status(200).json({ ok: true, result, model: out.modelId });
     } catch (err) {
       return res.status(500).json({ error: 'AI chat failed: ' + err.message });
     }
