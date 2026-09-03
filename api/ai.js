@@ -12,7 +12,7 @@
  */
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const FLASH = `${BASE}/gemini-2.0-flash:generateContent`;
+const FLASH = `${BASE}/gemini-3.6-flash:generateContent`;
 const API_KEY = process.env.GEMINI_API_KEY || '';
 
 /* ---- helpers ---- */
