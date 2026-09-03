@@ -216,21 +216,23 @@ export default async function handler(req, res) {
               { inlineData: { mimeType: mt, data: imageBase64 } },
             ],
           }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 2048, responseMimeType: 'application/json' },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
         }),
       });
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
-        if (r.status === 429) return res.status(429).json({ error: 'Rate limit. Try again in a moment.' });
-        return res.status(502).json({ error: 'AI error: ' + (e?.error?.message || r.status) });
+        const msg = e?.error?.message || '';
+        if (r.status === 429 || msg.includes('high demand')) return res.status(429).json({ error: 'AI is busy. Try again in a moment.' });
+        return res.status(502).json({ error: 'AI error: ' + (msg || r.status) });
       }
       const json = await r.json();
-      const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) return res.status(502).json({ error: 'AI returned no content.' });
-      let result;
-      try { result = JSON.parse(text); }
-      catch { const m = text.match(/\{[\s\S]*\}/); result = m ? JSON.parse(m[0]) : null; }
-      if (!result) return res.status(502).json({ error: 'Could not parse AI response.' });
+      const raw = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (!raw) return res.status(502).json({ error: 'AI returned no content.' });
+      const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      let result = null;
+      try { result = JSON.parse(stripped); } catch (_) {}
+      if (!result) { const m = stripped.match(/\{[\s\S]*\}/); if (m) try { result = JSON.parse(m[0]); } catch (_) {} }
+      if (!result) return res.status(502).json({ error: 'Could not parse lab extraction response.' });
       return res.status(200).json({ ok: true, result });
     } catch (err) {
       return res.status(500).json({ error: 'Labs extraction failed: ' + err.message });
@@ -253,7 +255,7 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: promptFn(data || {}) }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024, responseMimeType: 'application/json' },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
         safetySettings: [
           { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
           { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -263,19 +265,25 @@ export default async function handler(req, res) {
 
     if (!r.ok) {
       const e = await r.json().catch(() => ({}));
-      if (r.status === 429) return res.status(429).json({ error: 'AI rate limit hit. Try again shortly.' });
+      const msg = e?.error?.message || '';
+      if (r.status === 429 || msg.includes('high demand')) return res.status(429).json({ error: 'AI is busy right now. Try again in a moment.' });
       if (r.status === 400) return res.status(503).json({ error: 'Invalid GEMINI_API_KEY — check Vercel env vars.' });
-      return res.status(502).json({ error: 'AI service error: ' + (e?.error?.message || r.status) });
+      return res.status(502).json({ error: 'AI service error: ' + (msg || r.status) });
     }
 
     const json = await r.json();
-    const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) return res.status(502).json({ error: 'AI returned no content.' });
+    const raw = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!raw) return res.status(502).json({ error: 'AI returned no content.' });
 
-    let result;
-    try { result = JSON.parse(text); }
-    catch { const m = text.match(/\{[\s\S]*\}/); result = m ? JSON.parse(m[0]) : null; }
-    if (!result) return res.status(502).json({ error: 'AI response could not be parsed.' });
+    /* strip markdown code fences if present, then extract JSON object */
+    const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    let result = null;
+    try { result = JSON.parse(stripped); } catch (_) {}
+    if (!result) {
+      const m = stripped.match(/\{[\s\S]*\}/);
+      if (m) try { result = JSON.parse(m[0]); } catch (_) {}
+    }
+    if (!result) return res.status(502).json({ error: 'AI response could not be parsed. Try again.' });
 
     return res.status(200).json({ ok: true, result });
   } catch (err) {
